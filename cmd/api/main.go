@@ -1,4 +1,7 @@
-// cmd/api/main.go
+// @title       GradeFlow API
+// @version     0.1.0
+// @description API for schedule, assessments, attendance and grades.
+// @BasePath    /
 package main
 
 import (
@@ -12,7 +15,14 @@ import (
 
 	edb "gradeflow/internal/db"
 	httpapi "gradeflow/internal/http"
+
+	docs "gradeflow/api/docs"
 )
+
+func init() {
+	// Можно настраивать метаданные тут, если нужно
+	docs.SwaggerInfo.BasePath = "/api"
+}
 
 func main() {
 	pgURL := mustEnv("PG_URL")
@@ -32,7 +42,7 @@ func main() {
 	}
 
 	// старт API
-	srv := httpapi.NewServer()
+	srv := httpapi.New()
 	log.Printf("API listening on %s", httpAddr)
 	if err := srv.Run(httpAddr); err != nil {
 		log.Fatal(err)
