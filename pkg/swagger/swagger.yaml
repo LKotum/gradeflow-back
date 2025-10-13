@@ -1,0 +1,3603 @@
+basePath: /
+definitions:
+  request.AttendanceBulkItem:
+    properties:
+      status:
+        type: string
+      studentId:
+        type: string
+    required:
+    - status
+    - studentId
+    type: object
+  request.CreateAcademicSession:
+    properties:
+      code:
+        type: string
+      endsAt:
+        type: string
+      kind:
+        type: string
+      startsAt:
+        type: string
+    required:
+    - code
+    - endsAt
+    - kind
+    - startsAt
+    type: object
+  request.CreateAdmin:
+    properties:
+      fullName:
+        type: string
+      userId:
+        type: string
+    required:
+    - fullName
+    type: object
+  request.CreateAssessment:
+    properties:
+      courseId:
+        type: string
+      dateAt:
+        type: string
+      maxPts:
+        type: number
+      room:
+        type: string
+      scale:
+        type: string
+      type:
+        type: string
+    required:
+    - courseId
+    - dateAt
+    - scale
+    - type
+    type: object
+  request.CreateAssessmentGrade:
+    properties:
+      assessmentId:
+        type: string
+      scale:
+        type: string
+      studentId:
+        type: string
+      valueNum:
+        type: number
+      valuePass:
+        type: boolean
+    required:
+    - assessmentId
+    - studentId
+    type: object
+  request.CreateAttendance:
+    properties:
+      lessonId:
+        type: string
+      status:
+        type: string
+      studentId:
+        type: string
+    required:
+    - lessonId
+    - status
+    - studentId
+    type: object
+  request.CreateCourse:
+    properties:
+      academicSessionId:
+        type: string
+      departmentId:
+        type: string
+      programId:
+        type: string
+      room:
+        type: string
+      subjectId:
+        type: string
+      teacherId:
+        type: string
+      title:
+        type: string
+    required:
+    - academicSessionId
+    - departmentId
+    - subjectId
+    - title
+    type: object
+  request.CreateCredit:
+    properties:
+      approvedById:
+        type: string
+      courseId:
+        type: string
+      reason:
+        type: string
+      studentId:
+        type: string
+      type:
+        type: string
+    required:
+    - courseId
+    - studentId
+    - type
+    type: object
+  request.CreateDepartment:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  request.CreateEnrollment:
+    properties:
+      courseId:
+        type: string
+      studentId:
+        type: string
+    required:
+    - courseId
+    - studentId
+    type: object
+  request.CreateExamAttempt:
+    properties:
+      assessmentId:
+        type: string
+      attemptNo:
+        type: integer
+      dateAt:
+        type: string
+      notes:
+        type: string
+      resultScale:
+        type: string
+      studentId:
+        type: string
+      valueNum:
+        type: integer
+      valuePass:
+        type: boolean
+    required:
+    - assessmentId
+    - resultScale
+    - studentId
+    type: object
+  request.CreateExamSession:
+    properties:
+      academicSessionId:
+        type: string
+      endsAt:
+        type: string
+      name:
+        type: string
+      startsAt:
+        type: string
+    required:
+    - academicSessionId
+    - name
+    type: object
+  request.CreateGroup:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      programId:
+        type: string
+      year:
+        type: integer
+    required:
+    - code
+    - name
+    - programId
+    - year
+    type: object
+  request.CreateLesson:
+    properties:
+      courseId:
+        type: string
+      endsAt:
+        type: string
+      kind:
+        type: string
+      room:
+        type: string
+      startsAt:
+        type: string
+    required:
+    - courseId
+    - endsAt
+    - kind
+    - startsAt
+    type: object
+  request.CreatePractice:
+    properties:
+      departmentId:
+        type: string
+      description:
+        type: string
+      endDate:
+        type: string
+      programId:
+        type: string
+      startDate:
+        type: string
+      supervisorId:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  request.CreateProgram:
+    properties:
+      code:
+        type: string
+      departmentId:
+        type: string
+      name:
+        type: string
+    required:
+    - code
+    - departmentId
+    - name
+    type: object
+  request.CreateStaff:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      position:
+        type: string
+      userId:
+        type: string
+    required:
+    - fullName
+    type: object
+  request.CreateStudent:
+    properties:
+      fullName:
+        type: string
+      groupId:
+        type: string
+      individualNumber:
+        type: string
+    required:
+    - fullName
+    - individualNumber
+    type: object
+  request.CreateSubject:
+    properties:
+      code:
+        type: string
+      credits:
+        type: integer
+      departmentId:
+        type: string
+      title:
+        type: string
+    required:
+    - code
+    - departmentId
+    - title
+    type: object
+  request.CreateTeacher:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      rank:
+        type: string
+      title:
+        type: string
+      userId:
+        type: string
+    required:
+    - fullName
+    type: object
+  request.GradeItem:
+    properties:
+      scale:
+        type: string
+      studentId:
+        type: string
+      valueNum:
+        type: number
+      valuePass:
+        type: boolean
+    required:
+    - studentId
+    type: object
+  request.Login:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      totp:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  request.Logout:
+    properties:
+      refresh:
+        type: string
+    type: object
+  request.PracticeEnrollmentItem:
+    properties:
+      place:
+        type: string
+      status:
+        type: string
+      studentId:
+        type: string
+    required:
+    - studentId
+    type: object
+  request.Refresh:
+    properties:
+      refresh:
+        type: string
+    required:
+    - refresh
+    type: object
+  request.Register:
+    properties:
+      email:
+        type: string
+      fullName:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      role:
+        type: string
+    required:
+    - email
+    - fullName
+    - password
+    - role
+    type: object
+  request.RequestReset:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  request.ResetPassword:
+    properties:
+      password:
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - token
+    type: object
+  request.UpdateAcademicSession:
+    properties:
+      code:
+        type: string
+      endsAt:
+        type: string
+      kind:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  request.UpdateAdmin:
+    properties:
+      fullName:
+        type: string
+      userId:
+        type: string
+    type: object
+  request.UpdateAssessment:
+    properties:
+      courseId:
+        type: string
+      dateAt:
+        type: string
+      maxPts:
+        type: number
+      room:
+        type: string
+      scale:
+        type: string
+      type:
+        type: string
+    type: object
+  request.UpdateAssessmentGrade:
+    properties:
+      scale:
+        type: string
+      valueNum:
+        type: number
+      valuePass:
+        type: boolean
+    type: object
+  request.UpdateAttendance:
+    properties:
+      status:
+        type: string
+    type: object
+  request.UpdateCourse:
+    properties:
+      academicSessionId:
+        type: string
+      departmentId:
+        type: string
+      programId:
+        type: string
+      room:
+        type: string
+      subjectId:
+        type: string
+      teacherId:
+        type: string
+      title:
+        type: string
+    type: object
+  request.UpdateCredit:
+    properties:
+      approvedById:
+        type: string
+      reason:
+        type: string
+      type:
+        type: string
+    type: object
+  request.UpdateDepartment:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+    type: object
+  request.UpdateEnrollment:
+    properties:
+      courseId:
+        type: string
+      studentId:
+        type: string
+    type: object
+  request.UpdateExamAttempt:
+    properties:
+      attemptNo:
+        type: integer
+      dateAt:
+        type: string
+      notes:
+        type: string
+      resultScale:
+        type: string
+      valueNum:
+        type: integer
+      valuePass:
+        type: boolean
+    type: object
+  request.UpdateExamSession:
+    properties:
+      endsAt:
+        type: string
+      name:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  request.UpdateGroup:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      programId:
+        type: string
+      year:
+        type: integer
+    type: object
+  request.UpdateLesson:
+    properties:
+      courseId:
+        type: string
+      endsAt:
+        type: string
+      kind:
+        type: string
+      room:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  request.UpdatePractice:
+    properties:
+      departmentId:
+        type: string
+      description:
+        type: string
+      endDate:
+        type: string
+      programId:
+        type: string
+      startDate:
+        type: string
+      supervisorId:
+        type: string
+      title:
+        type: string
+    type: object
+  request.UpdateProgram:
+    properties:
+      code:
+        type: string
+      departmentId:
+        type: string
+      name:
+        type: string
+    type: object
+  request.UpdateStaff:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      position:
+        type: string
+      userId:
+        type: string
+    type: object
+  request.UpdateStudent:
+    properties:
+      fullName:
+        type: string
+      groupId:
+        type: string
+      individualNumber:
+        type: string
+    type: object
+  request.UpdateSubject:
+    properties:
+      code:
+        type: string
+      credits:
+        type: integer
+      departmentId:
+        type: string
+      title:
+        type: string
+    type: object
+  request.UpdateTeacher:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      rank:
+        type: string
+      title:
+        type: string
+      userId:
+        type: string
+    type: object
+  response.AcademicSession:
+    properties:
+      code:
+        type: string
+      endsAt:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  response.AcademicSessionList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.AcademicSession'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Admin:
+    properties:
+      fullName:
+        type: string
+      id:
+        type: string
+      userId:
+        type: string
+    type: object
+  response.AdminList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Admin'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Assessment:
+    properties:
+      courseId:
+        type: string
+      dateAt:
+        type: string
+      id:
+        type: string
+      maxPts:
+        type: number
+      room:
+        type: string
+      scale:
+        type: string
+      type:
+        type: string
+    type: object
+  response.AssessmentGrade:
+    properties:
+      assessmentId:
+        type: string
+      gradedAt:
+        type: string
+      gradedBy:
+        type: string
+      id:
+        type: string
+      scale:
+        type: string
+      studentId:
+        type: string
+      valueNum:
+        type: number
+      valuePass:
+        type: boolean
+    type: object
+  response.AssessmentGradeList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.AssessmentGrade'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.AssessmentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Assessment'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Attendance:
+    properties:
+      id:
+        type: string
+      lessonId:
+        type: string
+      markedAt:
+        type: string
+      markedBy:
+        type: string
+      status:
+        type: string
+      studentId:
+        type: string
+    type: object
+  response.AttendanceList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Attendance'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Course:
+    properties:
+      academicSessionId:
+        type: string
+      departmentId:
+        type: string
+      id:
+        type: string
+      programId:
+        type: string
+      room:
+        type: string
+      subjectId:
+        type: string
+      teacherId:
+        type: string
+      title:
+        type: string
+    type: object
+  response.CourseList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Course'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.CreatedID:
+    properties:
+      id:
+        type: string
+    type: object
+  response.Credit:
+    properties:
+      approvedById:
+        type: string
+      courseId:
+        type: string
+      id:
+        type: string
+      reason:
+        type: string
+      studentId:
+        type: string
+      type:
+        type: string
+    type: object
+  response.CreditList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Credit'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Department:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  response.DepartmentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Department'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Enrollment:
+    properties:
+      courseId:
+        type: string
+      id:
+        type: string
+      studentId:
+        type: string
+    type: object
+  response.EnrollmentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Enrollment'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Error:
+    properties:
+      details: {}
+      error:
+        type: string
+    type: object
+  response.ExamAttempt:
+    properties:
+      assessmentId:
+        type: string
+      attemptNo:
+        type: integer
+      dateAt:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      resultScale:
+        type: string
+      studentId:
+        type: string
+      valueNum:
+        type: integer
+      valuePass:
+        type: boolean
+    type: object
+  response.ExamAttemptList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.ExamAttempt'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.ExamSession:
+    properties:
+      academicSessionId:
+        type: string
+      endsAt:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  response.ExamSessionList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.ExamSession'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Group:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      programId:
+        type: string
+      year:
+        type: integer
+    type: object
+  response.GroupList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Group'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Lesson:
+    properties:
+      courseId:
+        type: string
+      endsAt:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      room:
+        type: string
+      startsAt:
+        type: string
+    type: object
+  response.LessonList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Lesson'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.OK:
+    properties:
+      ok:
+        type: boolean
+    type: object
+  response.Page:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  response.Practice:
+    properties:
+      departmentId:
+        type: string
+      description:
+        type: string
+      endDate:
+        type: string
+      id:
+        type: string
+      programId:
+        type: string
+      startDate:
+        type: string
+      supervisorId:
+        type: string
+      title:
+        type: string
+    type: object
+  response.PracticeEnrollment:
+    properties:
+      id:
+        type: string
+      place:
+        type: string
+      practiceId:
+        type: string
+      status:
+        type: string
+      studentId:
+        type: string
+    type: object
+  response.PracticeEnrollmentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.PracticeEnrollment'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.PracticeList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Practice'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Program:
+    properties:
+      code:
+        type: string
+      departmentId:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  response.ProgramList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Program'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Staff:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: string
+      position:
+        type: string
+      userId:
+        type: string
+    type: object
+  response.StaffList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Staff'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Student:
+    properties:
+      fullName:
+        type: string
+      groupId:
+        type: string
+      id:
+        type: string
+      individualNumber:
+        type: string
+    type: object
+  response.StudentList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Student'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Subject:
+    properties:
+      code:
+        type: string
+      credits:
+        type: integer
+      departmentId:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+  response.SubjectList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Subject'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.Teacher:
+    properties:
+      departmentId:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: string
+      rank:
+        type: string
+      title:
+        type: string
+      userId:
+        type: string
+    type: object
+  response.TeacherList:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.Teacher'
+        type: array
+      page:
+        $ref: '#/definitions/response.Page'
+    type: object
+  response.TokenPair:
+    properties:
+      access:
+        type: string
+      refresh:
+        type: string
+    type: object
+  response.User:
+    properties:
+      email:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      totpEnabled:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: API for schedule, assessments, attendance and grades.
+  title: GradeFlow API
+  version: 0.1.0
+paths:
+  /academic-sessions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AcademicSessionList'
+      summary: List academic sessions
+      tags:
+      - academic-sessions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: session
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAcademicSession'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.AcademicSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create academic session
+      tags:
+      - academic-sessions
+  /academic-sessions/{id}:
+    delete:
+      parameters:
+      - description: session id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete academic session
+      tags:
+      - academic-sessions
+    get:
+      parameters:
+      - description: session id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AcademicSession'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get academic session
+      tags:
+      - academic-sessions
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: session id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: session
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateAcademicSession'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AcademicSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update academic session
+      tags:
+      - academic-sessions
+  /admins:
+    get:
+      parameters:
+      - description: search by name
+        in: query
+        name: q
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AdminList'
+      summary: List admins
+      tags:
+      - admins
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: admin
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAdmin'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Admin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create admin
+      tags:
+      - admins
+  /admins/{id}:
+    delete:
+      parameters:
+      - description: admin id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete admin
+      tags:
+      - admins
+    get:
+      parameters:
+      - description: admin id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Admin'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get admin
+      tags:
+      - admins
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: admin id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: admin
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateAdmin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Admin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update admin
+      tags:
+      - admins
+  /assessments:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentList'
+      summary: List assessments
+      tags:
+      - assessments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: assessment
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAssessment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Assessment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create assessment
+      tags:
+      - assessments
+  /assessments/{id}:
+    delete:
+      parameters:
+      - description: assessment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete assessment
+      tags:
+      - assessments
+    get:
+      parameters:
+      - description: assessment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Assessment'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get assessment
+      tags:
+      - assessments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: assessment id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: assessment
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateAssessment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Assessment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update assessment
+      tags:
+      - assessments
+  /assessments/{id}/grades:
+    get:
+      parameters:
+      - description: assessment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentGradeList'
+      summary: List grades for assessment
+      tags:
+      - assessments
+      - grades
+  /assessments/{id}/grades/bulk:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: assessment id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: grades
+        in: body
+        name: input
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/request.GradeItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentGradeList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Bulk upsert grades for assessment
+      tags:
+      - assessments
+      - grades
+  /attendance:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AttendanceList'
+      summary: List attendance
+      tags:
+      - attendance
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: attendance
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAttendance'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Attendance'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create attendance
+      tags:
+      - attendance
+  /attendance/{id}:
+    delete:
+      parameters:
+      - description: attendance id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete attendance
+      tags:
+      - attendance
+    get:
+      parameters:
+      - description: attendance id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Attendance'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get attendance
+      tags:
+      - attendance
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: attendance id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: attendance
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateAttendance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Attendance'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update attendance
+      tags:
+      - attendance
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: login
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.TokenPair'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Login with email/password (+TOTP if enabled)
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: logout
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Logout'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.OK'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Logout (revoke refresh token)
+      tags:
+      - auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Error'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: refresh
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Refresh'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.TokenPair'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Refresh access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user and sends a verification email
+      parameters:
+      - description: registration
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.Register'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.CreatedID'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Register new user
+      tags:
+      - auth
+  /auth/request-reset:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: email
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.RequestReset'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.OK'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Request password reset
+      tags:
+      - auth
+  /auth/reset:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: reset
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.ResetPassword'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.OK'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Reset password using token
+      tags:
+      - auth
+  /auth/verify:
+    get:
+      parameters:
+      - description: verification token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.OK'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Verify email address
+      tags:
+      - auth
+  /courses:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CourseList'
+      summary: List courses
+      tags:
+      - courses
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: course
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateCourse'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Course'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create course
+      tags:
+      - courses
+  /courses/{id}:
+    delete:
+      parameters:
+      - description: course id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete course
+      tags:
+      - courses
+    get:
+      parameters:
+      - description: course id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Course'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get course
+      tags:
+      - courses
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: course id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: course
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateCourse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Course'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update course
+      tags:
+      - courses
+  /credits:
+    get:
+      parameters:
+      - description: filter by course
+        in: query
+        name: courseId
+        type: string
+      - description: filter by student
+        in: query
+        name: studentId
+        type: string
+      - description: filter by type
+        in: query
+        name: type
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CreditList'
+      summary: List credits
+      tags:
+      - credits
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: credit
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateCredit'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Credit'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create credit/offset
+      tags:
+      - credits
+  /credits/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete credit
+      tags:
+      - credits
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Credit'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get credit
+      tags:
+      - credits
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: credit
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateCredit'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Credit'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update credit
+      tags:
+      - credits
+  /departments:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.DepartmentList'
+      summary: List departments
+      tags:
+      - departments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: department
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateDepartment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Department'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create department
+      tags:
+      - departments
+  /departments/{id}:
+    delete:
+      parameters:
+      - description: department id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete department
+      tags:
+      - departments
+    get:
+      parameters:
+      - description: department id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Department'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get department
+      tags:
+      - departments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: department id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: department
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateDepartment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Department'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update department
+      tags:
+      - departments
+  /enrollments:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.EnrollmentList'
+      summary: List enrollments
+      tags:
+      - enrollments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: enrollment
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateEnrollment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Enrollment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create enrollment
+      tags:
+      - enrollments
+  /enrollments/{id}:
+    delete:
+      parameters:
+      - description: enrollment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete enrollment
+      tags:
+      - enrollments
+    get:
+      parameters:
+      - description: enrollment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Enrollment'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get enrollment
+      tags:
+      - enrollments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: enrollment id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: enrollment
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateEnrollment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Enrollment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update enrollment
+      tags:
+      - enrollments
+  /exam-attempts:
+    get:
+      parameters:
+      - description: filter by assessment
+        in: query
+        name: assessmentId
+        type: string
+      - description: filter by student
+        in: query
+        name: studentId
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamAttemptList'
+      summary: List exam attempts
+      tags:
+      - exam-attempts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: attempt
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateExamAttempt'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.ExamAttempt'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create exam attempt
+      tags:
+      - exam-attempts
+  /exam-attempts/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete exam attempt
+      tags:
+      - exam-attempts
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamAttempt'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get exam attempt
+      tags:
+      - exam-attempts
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: attempt
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateExamAttempt'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamAttempt'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update exam attempt
+      tags:
+      - exam-attempts
+  /exam-sessions:
+    get:
+      parameters:
+      - description: filter by academic session
+        in: query
+        name: academicSessionId
+        type: string
+      - description: search by name
+        in: query
+        name: q
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamSessionList'
+      summary: List exam sessions
+      tags:
+      - exam-sessions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: exam session
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateExamSession'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.ExamSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create exam session
+      tags:
+      - exam-sessions
+  /exam-sessions/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete exam session
+      tags:
+      - exam-sessions
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamSession'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get exam session
+      tags:
+      - exam-sessions
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: exam session
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateExamSession'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ExamSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update exam session
+      tags:
+      - exam-sessions
+  /grades:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentGradeList'
+      summary: List grades
+      tags:
+      - grades
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: grade
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateAssessmentGrade'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.AssessmentGrade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create grade
+      tags:
+      - grades
+  /grades/{id}:
+    delete:
+      parameters:
+      - description: grade id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete grade
+      tags:
+      - grades
+    get:
+      parameters:
+      - description: grade id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentGrade'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get grade
+      tags:
+      - grades
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: grade id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: grade
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateAssessmentGrade'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AssessmentGrade'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update grade
+      tags:
+      - grades
+  /groups:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.GroupList'
+      summary: List groups
+      tags:
+      - groups
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: group
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateGroup'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Group'
+      summary: Create group
+      tags:
+      - groups
+  /groups/{id}:
+    delete:
+      parameters:
+      - description: group id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete group
+      tags:
+      - groups
+    get:
+      parameters:
+      - description: group id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Group'
+      summary: Get group
+      tags:
+      - groups
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: group id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: group
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateGroup'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Group'
+      summary: Update group
+      tags:
+      - groups
+  /lessons:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.LessonList'
+      summary: List lessons
+      tags:
+      - lessons
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: lesson
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateLesson'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Lesson'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create lesson
+      tags:
+      - lessons
+  /lessons/{id}:
+    delete:
+      parameters:
+      - description: lesson id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete lesson
+      tags:
+      - lessons
+    get:
+      parameters:
+      - description: lesson id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Lesson'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get lesson
+      tags:
+      - lessons
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: lesson id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: lesson
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateLesson'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Lesson'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update lesson
+      tags:
+      - lessons
+  /lessons/{id}/attendance:
+    get:
+      parameters:
+      - description: lesson id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AttendanceList'
+      summary: List attendance for lesson
+      tags:
+      - lessons
+      - attendance
+  /lessons/{id}/attendance/bulk:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: lesson id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: attendance entries
+        in: body
+        name: input
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/request.AttendanceBulkItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AttendanceList'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Bulk upsert attendance for lesson
+      tags:
+      - lessons
+      - attendance
+  /practices:
+    get:
+      parameters:
+      - description: filter by department
+        in: query
+        name: departmentId
+        type: string
+      - description: filter by program
+        in: query
+        name: programId
+        type: string
+      - description: start date >= (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: end date <= (RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: search by title
+        in: query
+        name: q
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PracticeList'
+      summary: List practices
+      tags:
+      - practices
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: practice
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreatePractice'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Practice'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create practice
+      tags:
+      - practices
+  /practices/{id}:
+    delete:
+      parameters:
+      - description: practice id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete practice
+      tags:
+      - practices
+    get:
+      parameters:
+      - description: practice id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Practice'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get practice
+      tags:
+      - practices
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: practice id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: practice
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdatePractice'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Practice'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update practice
+      tags:
+      - practices
+  /practices/{id}/enrollments:
+    get:
+      parameters:
+      - description: practice id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: filter by student
+        in: query
+        name: studentId
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PracticeEnrollmentList'
+      summary: List practice enrollments
+      tags:
+      - practices
+  /practices/{id}/enrollments/bulk:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: practice id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: enrollments
+        in: body
+        name: input
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/request.PracticeEnrollmentItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.PracticeEnrollment'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Bulk upsert enrollments for practice
+      tags:
+      - practices
+  /programs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ProgramList'
+      summary: List programs
+      tags:
+      - programs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: program
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateProgram'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Program'
+      summary: Create program
+      tags:
+      - programs
+  /programs/{id}:
+    delete:
+      parameters:
+      - description: program id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete program
+      tags:
+      - programs
+    get:
+      parameters:
+      - description: program id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Program'
+      summary: Get program
+      tags:
+      - programs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: program id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: program
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateProgram'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Program'
+      summary: Update program
+      tags:
+      - programs
+  /staff:
+    get:
+      parameters:
+      - description: filter by department
+        in: query
+        name: departmentId
+        type: string
+      - description: search by name
+        in: query
+        name: q
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.StaffList'
+      summary: List staff
+      tags:
+      - staff
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: staff
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateStaff'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create staff member
+      tags:
+      - staff
+  /staff/{id}:
+    delete:
+      parameters:
+      - description: staff id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete staff member
+      tags:
+      - staff
+    get:
+      parameters:
+      - description: staff id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Staff'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get staff member
+      tags:
+      - staff
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: staff id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: staff
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateStaff'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update staff member
+      tags:
+      - staff
+  /students:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.StudentList'
+      summary: List students
+      tags:
+      - students
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: student
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateStudent'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Student'
+      summary: Create student
+      tags:
+      - students
+  /students/{id}:
+    delete:
+      parameters:
+      - description: student id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete student
+      tags:
+      - students
+    get:
+      parameters:
+      - description: student id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Student'
+      summary: Get student
+      tags:
+      - students
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: student id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: student
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateStudent'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Student'
+      summary: Update student
+      tags:
+      - students
+  /subjects:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SubjectList'
+      summary: List subjects
+      tags:
+      - subjects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: subject
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateSubject'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Subject'
+      summary: Create subject
+      tags:
+      - subjects
+  /subjects/{id}:
+    delete:
+      parameters:
+      - description: subject id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete subject
+      tags:
+      - subjects
+    get:
+      parameters:
+      - description: subject id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Subject'
+      summary: Get subject
+      tags:
+      - subjects
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: subject id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: subject
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateSubject'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Subject'
+      summary: Update subject
+      tags:
+      - subjects
+  /teachers:
+    get:
+      parameters:
+      - description: filter by department
+        in: query
+        name: departmentId
+        type: string
+      - description: search by name
+        in: query
+        name: q
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.TeacherList'
+      summary: List teachers
+      tags:
+      - teachers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: teacher
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateTeacher'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Create teacher
+      tags:
+      - teachers
+  /teachers/{id}:
+    delete:
+      parameters:
+      - description: teacher id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      summary: Delete teacher
+      tags:
+      - teachers
+    get:
+      parameters:
+      - description: teacher id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Teacher'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Get teacher
+      tags:
+      - teachers
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: teacher id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: teacher
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateTeacher'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Error'
+      summary: Update teacher
+      tags:
+      - teachers
+securityDefinitions:
+  BearerAuth:
+    description: Enter the token with the `Bearer ` prefix, e.g. `Bearer <token>`
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
