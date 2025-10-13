@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -57,12 +58,26 @@ func (h *AcademicSessionController) create(c *gin.Context) {
 // @Summary List academic sessions
 // @Tags academic-sessions
 // @Produce json
+// @Param from query string false "window from (RFC3339)"
+// @Param to query string false "window to (RFC3339)"
+// @Param limit query int false "limit"
+// @Param offset query int false "offset"
 // @Success 200 {object} response.AcademicSessionList
 // @Router /academic-sessions [get]
 func (h *AcademicSessionController) list(c *gin.Context) {
 	var qin req.ListAcademicSessionQuery
 	_ = c.ShouldBindQuery(&qin)
 	base := h.DB.Model(&m.AcademicSession{})
+	if qin.From != "" {
+		if t, err := time.Parse(time.RFC3339, qin.From); err == nil {
+			base = base.Where("ends_at >= ?", t)
+		}
+	}
+	if qin.To != "" {
+		if t, err := time.Parse(time.RFC3339, qin.To); err == nil {
+			base = base.Where("starts_at <= ?", t)
+		}
+	}
 	var total int64
 	if err := base.Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})

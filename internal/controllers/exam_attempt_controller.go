@@ -67,6 +67,9 @@ func (h *ExamAttemptController) create(c *gin.Context) {
 // @Produce json
 // @Param assessmentId query string false "filter by assessment"
 // @Param studentId query string false "filter by student"
+// @Param courseId query string false "filter by course"
+// @Param from query string false "date from (RFC3339)"
+// @Param to query string false "date to (RFC3339)"
 // @Param limit query int false "limit"
 // @Param offset query int false "offset"
 // @Success 200 {object} response.ExamAttemptList
@@ -80,6 +83,19 @@ func (h *ExamAttemptController) list(c *gin.Context) {
 	}
 	if v := qin.StudentID; v != "" {
 		base = base.Where("student_id = ?", v)
+	}
+	if v := qin.CourseID; v != "" {
+		base = base.Joins("JOIN assessments ON assessments.id = exam_attempts.assessment_id").Where("assessments.course_id = ?", v)
+	}
+	if qin.From != "" {
+		if t, err := time.Parse(time.RFC3339, qin.From); err == nil {
+			base = base.Where("date_at >= ?", t)
+		}
+	}
+	if qin.To != "" {
+		if t, err := time.Parse(time.RFC3339, qin.To); err == nil {
+			base = base.Where("date_at <= ?", t)
+		}
 	}
 	var total int64
 	if err := base.Count(&total).Error; err != nil {

@@ -3,7 +3,7 @@ package response
 // JournalAttendanceEntry represents a student's attendance for a lesson
 type JournalAttendanceEntry struct {
 	LessonID string `json:"lessonId"`
-	Status   string `json:"status"` // present|absent|late
+	Status   string `json:"status"` // allowed statuses: see validation.ValidAttendanceStatuses
 }
 
 // JournalGradeEntry represents a student's grade for an assessment

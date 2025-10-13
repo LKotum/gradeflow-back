@@ -11,16 +11,19 @@ import (
 	req "gradeflow/internal/domain/dto/request"
 	resp "gradeflow/internal/domain/dto/response"
 	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/service"
 	"gradeflow/pkg/middleware"
 )
 
 type AssessmentController struct {
-	DB  *gorm.DB
-	Cfg config.Config
+	DB        *gorm.DB
+	Cfg       config.Config
+	AssessSvc service.AssessmentService
+	GradeSvc  service.AssessmentGradeService
 }
 
-func NewAssessmentController(db *gorm.DB, cfg config.Config) *AssessmentController {
-	return &AssessmentController{DB: db, Cfg: cfg}
+func NewAssessmentController(db *gorm.DB, cfg config.Config, assessSvc service.AssessmentService, gradeSvc service.AssessmentGradeService) *AssessmentController {
+	return &AssessmentController{DB: db, Cfg: cfg, AssessSvc: assessSvc, GradeSvc: gradeSvc}
 }
 
 func (h *AssessmentController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -32,7 +35,6 @@ func (h *AssessmentController) RegisterRoutes(rg *gin.RouterGroup) {
 	g.PUT(":id", middleware.StaffOrTeacher(), h.update)
 	g.DELETE(":id", middleware.StaffOrTeacher(), h.delete)
 
-	// nested: manage grades
 	g.GET(":id/grades", h.listGrades)
 	g.POST(":id/grades/bulk", middleware.StaffOrTeacher(), h.bulkGrades)
 }
@@ -51,54 +53,37 @@ func (h *AssessmentController) create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	if in.Scale != "points" && in.Scale != "passfail" {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid scale"})
-		return
-	}
-	d := m.Assessment{CourseID: in.CourseID, Type: in.Type, DateAt: in.DateAt, Room: in.Room, Scale: in.Scale, MaxPts: in.MaxPts}
-	if err := h.DB.Create(&d).Error; err != nil {
+	assessment, err := h.AssessSvc.Create(in)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, toAssessmentResp(d))
+	c.JSON(http.StatusCreated, toAssessmentResp(*assessment))
 }
 
 // @Summary List assessments
 // @Tags assessments
 // @Produce json
+// @Param courseId query string false "filter by course"
+// @Param from query string false "date from (RFC3339)"
+// @Param to query string false "date to (RFC3339)"
+// @Param limit query int false "limit"
+// @Param offset query int false "offset"
 // @Success 200 {object} response.AssessmentList
 // @Router /assessments [get]
 func (h *AssessmentController) list(c *gin.Context) {
 	var qin req.ListAssessmentQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Assessment{})
-	if v := qin.CourseID; v != "" {
-		base = base.Where("course_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
+	assessments, total, limit, offset, err := h.AssessSvc.List(qin)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
 		return
 	}
-	if qin.Limit <= 0 {
-		qin.Limit = 200
+	items := make([]resp.Assessment, 0, len(assessments))
+	for _, a := range assessments {
+		items = append(items, toAssessmentResp(a))
 	}
-	if qin.Limit > 1000 {
-		qin.Limit = 1000
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var dd []m.Assessment
-	if err := base.Order("date_at asc").Limit(qin.Limit).Offset(qin.Offset).Find(&dd).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Assessment, 0, len(dd))
-	for _, d := range dd {
-		items = append(items, toAssessmentResp(d))
-	}
-	c.JSON(http.StatusOK, resp.List[resp.Assessment]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.Assessment]{Items: items, Page: resp.Page{Limit: limit, Offset: offset, Total: total}})
 }
 
 // @Summary Get assessment
@@ -110,12 +95,16 @@ func (h *AssessmentController) list(c *gin.Context) {
 // @Router /assessments/{id} [get]
 func (h *AssessmentController) get(c *gin.Context) {
 	id := c.Param("id")
-	var d m.Assessment
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	assessment, err := h.AssessSvc.Get(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, toAssessmentResp(d))
+	c.JSON(http.StatusOK, toAssessmentResp(*assessment))
 }
 
 // @Summary Update assessment
@@ -134,38 +123,16 @@ func (h *AssessmentController) update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var d m.Assessment
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
-		return
-	}
-	if in.CourseID != "" {
-		d.CourseID = in.CourseID
-	}
-	if in.Type != "" {
-		d.Type = in.Type
-	}
-	if in.DateAt != nil {
-		d.DateAt = *in.DateAt
-	}
-	if in.Room != "" {
-		d.Room = in.Room
-	}
-	if in.Scale != "" {
-		if in.Scale != "points" && in.Scale != "passfail" {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid scale"})
-			return
+	assessment, err := h.AssessSvc.Update(id, in)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		}
-		d.Scale = in.Scale
-	}
-	if in.MaxPts != nil {
-		d.MaxPts = in.MaxPts
-	}
-	if err := h.DB.Save(&d).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, toAssessmentResp(d))
+	c.JSON(http.StatusOK, toAssessmentResp(*assessment))
 }
 
 // @Summary Delete assessment
@@ -176,8 +143,12 @@ func (h *AssessmentController) update(c *gin.Context) {
 // @Router /assessments/{id} [delete]
 func (h *AssessmentController) delete(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.DB.Delete(&m.Assessment{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	if err := h.AssessSvc.Delete(id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -193,31 +164,20 @@ func (h *AssessmentController) listGrades(c *gin.Context) {
 	aid := c.Param("id")
 	var q req.PaginationQuery
 	_ = c.ShouldBindQuery(&q)
-	base := h.DB.Model(&m.AssessmentGrade{}).Where("assessment_id = ?", aid)
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
+	grades, total, limit, offset, err := h.GradeSvc.ListByAssessment(aid, q.Limit, q.Offset)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "assessment not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	if q.Limit <= 0 {
-		q.Limit = 500
-	}
-	if q.Limit > 2000 {
-		q.Limit = 2000
-	}
-	if q.Offset < 0 {
-		q.Offset = 0
-	}
-	var gg []m.AssessmentGrade
-	if err := base.Limit(q.Limit).Offset(q.Offset).Find(&gg).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.AssessmentGrade, 0, len(gg))
-	for _, g := range gg {
+	items := make([]resp.AssessmentGrade, 0, len(grades))
+	for _, g := range grades {
 		items = append(items, toAssessmentGradeResp(g))
 	}
-	c.JSON(http.StatusOK, resp.List[resp.AssessmentGrade]{Items: items, Page: resp.Page{Limit: q.Limit, Offset: q.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.AssessmentGrade]{Items: items, Page: resp.Page{Limit: limit, Offset: offset, Total: total}})
 }
 
 // @Summary Bulk upsert grades for assessment
@@ -236,47 +196,24 @@ func (h *AssessmentController) bulkGrades(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var gradedBy string
+	var gradedBy *string
 	if v, ok := c.Get("user"); ok {
 		if u, ok2 := v.(*m.User); ok2 {
-			gradedBy = u.ID
+			gradedBy = new(string)
+			*gradedBy = u.ID
 		}
 	}
-	now := time.Now()
-	for _, e := range in {
-		if e.Scale != "" && e.Scale != "points" && e.Scale != "passfail" {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid scale"})
-			return
-		}
-		if e.Scale == "points" && e.ValueNum == nil {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "valueNum required for points scale"})
-			return
-		}
-		if e.Scale == "passfail" && e.ValuePass == nil {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "valuePass required for passfail scale"})
-			return
-		}
-		var rec m.AssessmentGrade
-		if err := h.DB.Where("assessment_id = ? AND student_id = ?", aid, e.StudentID).First(&rec).Error; err == nil {
-			if e.Scale != "" {
-				rec.Scale = e.Scale
-			}
-			rec.ValueNum = e.ValueNum
-			rec.ValuePass = e.ValuePass
-			if gradedBy != "" {
-				rec.GradedBy = gradedBy
-			}
-			rec.GradedAt = now
-			_ = h.DB.Save(&rec).Error
+	grades, err := h.GradeSvc.BulkUpsert(aid, in, gradedBy)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
 		} else {
-			rec = m.AssessmentGrade{AssessmentID: aid, StudentID: e.StudentID, Scale: e.Scale, ValueNum: e.ValueNum, ValuePass: e.ValuePass, GradedBy: gradedBy, GradedAt: now}
-			_ = h.DB.Create(&rec).Error
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		}
+		return
 	}
-	var out []m.AssessmentGrade
-	_ = h.DB.Where("assessment_id = ?", aid).Find(&out).Error
-	items := make([]resp.AssessmentGrade, 0, len(out))
-	for _, g := range out {
+	items := make([]resp.AssessmentGrade, 0, len(grades))
+	for _, g := range grades {
 		items = append(items, toAssessmentGradeResp(g))
 	}
 	c.JSON(http.StatusOK, resp.List[resp.AssessmentGrade]{Items: items, Page: resp.Page{Limit: len(items), Offset: 0, Total: int64(len(items))}})

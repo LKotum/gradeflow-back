@@ -9,39 +9,31 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"gradeflow/internal/app"
+	"gradeflow/internal/config"
+	"gradeflow/pkg/logger"
 	docs "gradeflow/pkg/swagger"
 )
 
-func init() {
-	// Можно настраивать метаданные тут, если нужно
-	docs.SwaggerInfo.BasePath = "/api"
-}
-
 func main() {
-	pgURL := mustEnv("PG_URL")
-	httpAddr := getenv("HTTP_ADDR", ":8080")
-	a := app.New(pgURL)
-	srv := a.Engine
-	log.Printf("API listening on %s", httpAddr)
-	if err := srv.Run(httpAddr); err != nil {
-		log.Fatal(err)
+	// Load config once to configure Swagger BasePath
+	cfg := config.Load()
+	if _, err := logger.Init(cfg.Logging); err != nil {
+		fmt.Fprintf(os.Stderr, "logger init: %v\n", err)
+		os.Exit(1)
 	}
-}
+	defer logger.Sync()
+	docs.SwaggerInfo.BasePath = cfg.APIBasePath
 
-func getenv(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
+	// Build app with already loaded configuration
+	a := app.New(cfg)
+	srv := a.Engine
+	addr := a.Cfg.HTTPAddr
+	logger.Info("API listening", "addr", addr)
+	if err := srv.Run(addr); err != nil {
+		logger.Fatal("server stopped", "error", err)
 	}
-	return def
-}
-func mustEnv(k string) string {
-	v := os.Getenv(k)
-	if v == "" {
-		log.Fatalf("missing %s", k)
-	}
-	return v
 }

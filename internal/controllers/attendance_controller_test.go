@@ -1,20 +1,22 @@
 package controllers_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
+    "encoding/json"
+    "net/http"
+    "net/http/httptest"
+    "strings"
+    "testing"
+    "time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+    "github.com/gin-gonic/gin"
+    "github.com/golang-jwt/jwt/v5"
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
 
-	"gradeflow/internal/config"
-	ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/config"
+    ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/repository"
+    "gradeflow/internal/service"
 )
 
 type attTestCtx struct {
@@ -40,9 +42,11 @@ func setupAttTest(t *testing.T) attTestCtx {
 	must(db.Exec(`INSERT INTO users (id,email,full_name,password_hash,role,status,totp_enabled) VALUES ('u1','att-teacher@example.com','Teacher','x','teacher','active',0)`).Error)
 	must(db.Exec(`INSERT INTO lessons (id,course_id,starts_at,ends_at,kind) VALUES ('l1','c1',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'lecture')`).Error)
 
-	cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
-	r := gin.New()
-	ctrl := ctr.NewAttendanceController(db, cfg)
+    cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
+    r := gin.New()
+    repo := repository.NewAttendanceRepository(db)
+    svc := service.NewAttendanceService(repo)
+    ctrl := ctr.NewAttendanceController(db, cfg, svc)
 	grp := r.Group("/api")
 	ctrl.RegisterRoutes(grp)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u1", "exp": time.Now().Add(15 * time.Minute).Unix()})

@@ -1,25 +1,27 @@
 package app
 
 import (
-	"context"
-	"log"
-	"time"
+    "context"
+    "time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/redis/go-redis/v9"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+    "github.com/gin-contrib/cors"
+    "github.com/gin-gonic/gin"
+    "github.com/minio/minio-go/v7"
+    "github.com/minio/minio-go/v7/pkg/credentials"
+    "github.com/redis/go-redis/v9"
+    swaggerFiles "github.com/swaggo/files"
+    ginSwagger "github.com/swaggo/gin-swagger"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
 
-	"gradeflow/internal/config"
-	"gradeflow/internal/controllers"
-	edb "gradeflow/internal/migrations"
-	"gradeflow/pkg/middleware"
-	"gradeflow/pkg/utils"
+    "gradeflow/internal/config"
+    "gradeflow/internal/controllers"
+    edb "gradeflow/internal/migrations"
+    "gradeflow/internal/repository"
+    "gradeflow/internal/service"
+    "gradeflow/pkg/logger"
+    "gradeflow/pkg/middleware"
+    "gradeflow/pkg/utils"
 )
 
 type App struct {
@@ -31,16 +33,15 @@ type App struct {
 	MinIO  *minio.Client
 }
 
-func New(pgURL string) *App {
-	cfg := config.Load()
-	gdb, err := gorm.Open(postgres.Open(pgURL), &gorm.Config{})
+func New(cfg config.Config) *App {
+	gdb, err := gorm.Open(postgres.Open(cfg.PGURL), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("gorm open: %v", err)
+		logger.Fatal("gorm open failed", "error", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	if err := edb.AutoMigrateUp(ctx, gdb); err != nil {
-		log.Fatalf("migrate up: %v", err)
+		logger.Fatal("migrate failed", "error", err)
 	}
 
 	// Redis (optional)
@@ -73,25 +74,40 @@ func New(pgURL string) *App {
 	grp := controllers.NewGroupController(gdb, cfg)
 	grp.RegisterRoutes(api)
 
-	stu := controllers.NewStudentController(gdb, cfg)
+	studentRepo := repository.NewStudentRepository(gdb)
+	studentService := service.NewStudentService(studentRepo)
+	stu := controllers.NewStudentController(gdb, cfg, studentService)
 	stu.RegisterRoutes(api)
 
-	course := controllers.NewCourseController(gdb, cfg)
+	attendanceRepo := repository.NewAttendanceRepository(gdb)
+	attendanceService := service.NewAttendanceService(attendanceRepo)
+	lessonRepo := repository.NewLessonRepository(gdb)
+	lessonService := service.NewLessonService(lessonRepo)
+	courseRepo := repository.NewCourseRepository(gdb)
+	courseService := service.NewCourseService(courseRepo)
+	enrollmentRepo := repository.NewEnrollmentRepository(gdb)
+	enrollmentService := service.NewEnrollmentService(enrollmentRepo)
+	assessmentRepo := repository.NewAssessmentRepository(gdb)
+	assessmentService := service.NewAssessmentService(assessmentRepo)
+	gradeRepo := repository.NewAssessmentGradeRepository(gdb)
+	gradeService := service.NewAssessmentGradeService(gradeRepo, assessmentRepo)
+
+	course := controllers.NewCourseController(gdb, cfg, courseService)
 	course.RegisterRoutes(api)
 
-	enr := controllers.NewEnrollmentController(gdb, cfg)
+	enr := controllers.NewEnrollmentController(gdb, cfg, enrollmentService)
 	enr.RegisterRoutes(api)
 
-	lesson := controllers.NewLessonController(gdb, cfg)
+	lesson := controllers.NewLessonController(gdb, cfg, lessonService, attendanceService)
 	lesson.RegisterRoutes(api)
 
-	att := controllers.NewAttendanceController(gdb, cfg)
+	att := controllers.NewAttendanceController(gdb, cfg, attendanceService)
 	att.RegisterRoutes(api)
 
-	asm := controllers.NewAssessmentController(gdb, cfg)
+	asm := controllers.NewAssessmentController(gdb, cfg, assessmentService, gradeService)
 	asm.RegisterRoutes(api)
 
-	gr := controllers.NewAssessmentGradeController(gdb, cfg)
+	gr := controllers.NewAssessmentGradeController(gdb, cfg, gradeService)
 	gr.RegisterRoutes(api)
 
 	acs := controllers.NewAcademicSessionController(gdb, cfg)
@@ -103,6 +119,12 @@ func New(pgURL string) *App {
 
 	jr := controllers.NewJournalController(gdb, cfg)
 	jr.RegisterRoutes(api)
+
+	report := controllers.NewReportController(gdb, cfg)
+	report.RegisterRoutes(api)
+
+	rating := controllers.NewRatingController(gdb, cfg)
+	rating.RegisterRoutes(api)
 
 	// Teachers, Staff, Admins
 	teacher := controllers.NewTeacherController(gdb, cfg)
@@ -135,7 +157,7 @@ func New(pgURL string) *App {
 			Secure: cfg.MinIO.UseSSL,
 		})
 		if err != nil {
-			log.Printf("minio init error: %v", err)
+			logger.Warn("minio init error", "error", err)
 		} else {
 			mc = client
 			// Ensure buckets
@@ -146,7 +168,7 @@ func New(pgURL string) *App {
 				exists, err := mc.BucketExists(ctx, b)
 				if err == nil && !exists {
 					if err := mc.MakeBucket(ctx, b, minio.MakeBucketOptions{}); err != nil {
-						log.Printf("minio make bucket %s: %v", b, err)
+						logger.Warn("minio make bucket failed", "bucket", b, "error", err)
 					}
 				}
 			}

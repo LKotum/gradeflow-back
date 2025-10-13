@@ -1,20 +1,22 @@
 package controllers_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
+    "encoding/json"
+    "net/http"
+    "net/http/httptest"
+    "strings"
+    "testing"
+    "time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+    "github.com/gin-gonic/gin"
+    "github.com/golang-jwt/jwt/v5"
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
 
-	"gradeflow/internal/config"
-	ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/config"
+    ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/repository"
+    "gradeflow/internal/service"
 )
 
 type studentTestCtx struct {
@@ -36,13 +38,15 @@ func setupStudentTest(t *testing.T) studentTestCtx {
 	}
 	must(db.Exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME, email TEXT UNIQUE, full_name TEXT, password_hash TEXT, role TEXT, status TEXT, totp_secret TEXT, totp_enabled INTEGER, last_login_at DATETIME)`).Error)
 	must(db.Exec(`CREATE TABLE IF NOT EXISTS groups (id TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))), created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME, program_id TEXT, code TEXT UNIQUE, name TEXT, year INTEGER)`).Error)
-	must(db.Exec(`CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))), created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME, individual_number TEXT UNIQUE, full_name TEXT, group_id TEXT, user_id TEXT)`).Error)
+	must(db.Exec(`CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))), created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME, individual_number TEXT UNIQUE, full_name TEXT, group_id TEXT, user_id TEXT, start_year INTEGER, end_year INTEGER)`).Error)
 	must(db.Exec(`INSERT INTO users (id,email,full_name,password_hash,role,status,totp_enabled) VALUES ('u1','student-dean@example.com','Dean','x','dean','active',0)`).Error)
 	must(db.Exec(`INSERT INTO groups (id,program_id,code,name,year) VALUES ('g1','p1','G1','Group 1',2025)`).Error)
 
-	cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
-	r := gin.New()
-	ctrl := ctr.NewStudentController(db, cfg)
+    cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
+    r := gin.New()
+    repo := repository.NewStudentRepository(db)
+    svc := service.NewStudentService(repo)
+    ctrl := ctr.NewStudentController(db, cfg, svc)
 	grp := r.Group("/api")
 	ctrl.RegisterRoutes(grp)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u1", "exp": time.Now().Add(15 * time.Minute).Unix()})
@@ -54,7 +58,7 @@ func TestStudentCRUD(t *testing.T) {
 	ctx := setupStudentTest(t)
 	// create
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/students", strings.NewReader(`{"individualNumber":"S0001","fullName":"Alice","groupId":"g1"}`))
+	req := httptest.NewRequest("POST", "/api/students", strings.NewReader(`{"individualNumber":"S0001","fullName":"Alice","groupId":"g1","startYear":2023,"endYear":2027}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
 	ctx.r.ServeHTTP(w, req)
@@ -94,7 +98,7 @@ func TestStudentCRUD(t *testing.T) {
 
 	// update
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest("PUT", "/api/students/"+id, strings.NewReader(`{"fullName":"Alice Smith"}`))
+	req = httptest.NewRequest("PUT", "/api/students/"+id, strings.NewReader(`{"fullName":"Alice Smith","endYear":2028}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
 	ctx.r.ServeHTTP(w, req)

@@ -23,6 +23,8 @@ type UpdateAssessment struct {
 type ListAssessmentQuery struct {
 	PaginationQuery
 	CourseID string `form:"courseId"`
+	From     string `form:"from"` // RFC3339
+	To       string `form:"to"`   // RFC3339
 }
 
 type GradeItem struct {
@@ -51,4 +53,7 @@ type ListAssessmentGradeQuery struct {
 	PaginationQuery
 	AssessmentID string `form:"assessmentId"`
 	StudentID    string `form:"studentId"`
+	CourseID     string `form:"courseId"`
+	From         string `form:"from"` // RFC3339 gradedAt >=
+	To           string `form:"to"`   // RFC3339 gradedAt <=
 }

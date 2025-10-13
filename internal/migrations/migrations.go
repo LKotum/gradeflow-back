@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log"
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/gorm"
 
 	m "gradeflow/internal/domain/models"
+	"gradeflow/pkg/logger"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -166,7 +166,7 @@ func AutoMigrateUp(ctx context.Context, gdb *gorm.DB) error {
 						return err
 					}
 					// Print once on first creation
-					log.Printf("bootstrap admin created: email=%s password=%s", u.Email, pw)
+					logger.Info("bootstrap admin created", "email", u.Email, "password", pw)
 				}
 				return nil
 			},

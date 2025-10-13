@@ -9,4 +9,6 @@ type Student struct {
 	Group            *Group  `gorm:"foreignKey:GroupID;constraint:OnDelete:SET NULL"`
 	UserID           *string `gorm:"type:uuid;uniqueIndex"`
 	User             *User   `gorm:"foreignKey:UserID;constraint:OnDelete:SET NULL"`
+	StartYear        *int    `gorm:"type:int"`
+	EndYear          *int    `gorm:"type:int"`
 }

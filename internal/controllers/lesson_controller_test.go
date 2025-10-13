@@ -1,31 +1,36 @@
 package controllers_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "net/http/httptest"
+    "strings"
+    "testing"
+    "time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+    "github.com/gin-gonic/gin"
+    "github.com/golang-jwt/jwt/v5"
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
 
-	"gradeflow/internal/config"
-	ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/config"
+    ctr "gradeflow/internal/controllers"
+    "gradeflow/internal/repository"
+    "gradeflow/internal/service"
 )
 
 type lessonTestCtx struct {
 	r   *gin.Engine
 	jwt string
+	db  *gorm.DB
 }
 
 func setupLessonTest(t *testing.T) lessonTestCtx {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	db, err := gorm.Open(sqlite.Open("file:lessondb?mode=memory&cache=shared"), &gorm.Config{})
+	dsn := fmt.Sprintf("file:lessondb_%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -41,14 +46,18 @@ func setupLessonTest(t *testing.T) lessonTestCtx {
 	must(db.Exec(`INSERT INTO users (id,email,full_name,password_hash,role,status,totp_enabled) VALUES ('u1','lesson-teacher@example.com','Teacher','x','teacher','active',0)`).Error)
 	must(db.Exec(`INSERT INTO courses (id,title) VALUES ('c1','Algorithms 101')`).Error)
 
-	cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
-	r := gin.New()
-	ctrl := ctr.NewLessonController(db, cfg)
+    cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
+    r := gin.New()
+    lessonRepo := repository.NewLessonRepository(db)
+    lessonSvc := service.NewLessonService(lessonRepo)
+    attendanceRepo := repository.NewAttendanceRepository(db)
+    attendanceSvc := service.NewAttendanceService(attendanceRepo)
+    ctrl := ctr.NewLessonController(db, cfg, lessonSvc, attendanceSvc)
 	grp := r.Group("/api")
 	ctrl.RegisterRoutes(grp)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u1", "exp": time.Now().Add(15 * time.Minute).Unix()})
 	s, _ := token.SignedString([]byte(cfg.JWTSecret))
-	return lessonTestCtx{r: r, jwt: s}
+	return lessonTestCtx{r: r, jwt: s, db: db}
 }
 
 func TestLessonCRUDAndAttendance(t *testing.T) {
@@ -132,5 +141,58 @@ func TestLessonCRUDAndAttendance(t *testing.T) {
 	ctx.r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("delete expected 200 got=%d", w.Code)
+	}
+}
+
+func TestLesson_UnauthorizedWithoutJWT(t *testing.T) {
+	ctx := setupLessonTest(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/lessons", nil)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 got=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestLesson_ForbiddenForStudentOnCreate(t *testing.T) {
+	ctx := setupLessonTest(t)
+	// seed a student user and sign JWT for them
+	if err := ctx.db.Exec(`INSERT INTO users (id,email,full_name,password_hash,role,status,totp_enabled) VALUES ('u2','stud@example.com','Stud','x','student','active',0)`).Error; err != nil {
+		t.Fatalf("seed student: %v", err)
+	}
+	cfg := config.Config{JWTSecret: "test"}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u2", "exp": time.Now().Add(15 * time.Minute).Unix()})
+	studJWT, _ := token.SignedString([]byte(cfg.JWTSecret))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/lessons", strings.NewReader(`{"courseId":"c1","startsAt":"`+time.Now().Format(time.RFC3339)+`","endsAt":"`+time.Now().Add(time.Hour).Format(time.RFC3339)+`","room":"R","kind":"lecture"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+studJWT)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 got=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestLesson_CreateInvalidJSONReturns400(t *testing.T) {
+	ctx := setupLessonTest(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/lessons", strings.NewReader(`{"courseId":"c1"`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 got=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestLesson_GetNotFound(t *testing.T) {
+	ctx := setupLessonTest(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/lessons/not-exists", nil)
+	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 got=%d body=%s", w.Code, w.Body.String())
 	}
 }

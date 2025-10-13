@@ -15,6 +15,8 @@ import (
 
 	"gradeflow/internal/config"
 	ctr "gradeflow/internal/controllers"
+	"gradeflow/internal/repository"
+	"gradeflow/internal/service"
 )
 
 type courseTestCtx struct {
@@ -47,7 +49,9 @@ func setupCourseTest(t *testing.T) courseTestCtx {
 
 	cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
 	r := gin.New()
-	ctrl := ctr.NewCourseController(db, cfg)
+	courseRepo := repository.NewCourseRepository(db)
+	courseSvc := service.NewCourseService(courseRepo)
+	ctrl := ctr.NewCourseController(db, cfg, courseSvc)
 	grp := r.Group("/api")
 	ctrl.RegisterRoutes(grp)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u1", "exp": time.Now().Add(15 * time.Minute).Unix()})

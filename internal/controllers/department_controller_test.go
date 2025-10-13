@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,12 +21,14 @@ import (
 type deptTestCtx struct {
 	r   *gin.Engine
 	jwt string
+	db  *gorm.DB
 }
 
 func setupDeptTest(t *testing.T) deptTestCtx {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	dsn := fmt.Sprintf("file:deptdb_%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -74,7 +77,7 @@ func setupDeptTest(t *testing.T) deptTestCtx {
 	grp := r.Group("/api")
 	dept.RegisterRoutes(grp)
 
-	// create JWT
+	// create JWT (dean)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": "u1",
 		"exp": time.Now().Add(15 * time.Minute).Unix(),
@@ -83,7 +86,7 @@ func setupDeptTest(t *testing.T) deptTestCtx {
 	if err != nil {
 		t.Fatalf("sign jwt: %v", err)
 	}
-	return deptTestCtx{r: r, jwt: s}
+	return deptTestCtx{r: r, jwt: s, db: db}
 }
 
 func TestDepartmentCRUD(t *testing.T) {
@@ -145,5 +148,48 @@ func TestDepartmentCRUD(t *testing.T) {
 	ctx.r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("delete expected 200 got=%d", w.Code)
+	}
+}
+
+func TestDepartment_UnauthorizedWithoutJWT(t *testing.T) {
+	ctx := setupDeptTest(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/departments", nil)
+	// no Authorization header
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 got=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestDepartment_ForbiddenForStudentOnCreate(t *testing.T) {
+	ctx := setupDeptTest(t)
+	// seed a student user and sign JWT for them
+	if err := ctx.db.Exec(`INSERT INTO users (id,email,full_name,password_hash,role,status,totp_enabled) VALUES ('u2','stud@example.com','Stud','x','student','active',0)`).Error; err != nil {
+		t.Fatalf("seed student: %v", err)
+	}
+	cfg := config.Config{JWTSecret: "test"}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u2", "exp": time.Now().Add(15 * time.Minute).Unix()})
+	studJWT, _ := token.SignedString([]byte(cfg.JWTSecret))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/departments", strings.NewReader(`{"code":"XX","name":"Name"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+studJWT)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 got=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestDepartment_CreateInvalidJSONReturns400(t *testing.T) {
+	ctx := setupDeptTest(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/departments", strings.NewReader(`{"code":"broken"`)) // invalid JSON
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
+	ctx.r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 got=%d body=%s", w.Code, w.Body.String())
 	}
 }

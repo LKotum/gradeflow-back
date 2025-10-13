@@ -10,16 +10,18 @@ import (
 	req "gradeflow/internal/domain/dto/request"
 	resp "gradeflow/internal/domain/dto/response"
 	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/service"
 	"gradeflow/pkg/middleware"
 )
 
 type CourseController struct {
-	DB  *gorm.DB
-	Cfg config.Config
+	DB      *gorm.DB
+	Cfg     config.Config
+	Service service.CourseService
 }
 
-func NewCourseController(db *gorm.DB, cfg config.Config) *CourseController {
-	return &CourseController{DB: db, Cfg: cfg}
+func NewCourseController(db *gorm.DB, cfg config.Config, svc service.CourseService) *CourseController {
+    return &CourseController{DB: db, Cfg: cfg, Service: svc}
 }
 
 func (h *CourseController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -47,20 +49,12 @@ func (h *CourseController) create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	d := m.Course{
-		SubjectID:         in.SubjectID,
-		DepartmentID:      in.DepartmentID,
-		ProgramID:         in.ProgramID,
-		AcademicSessionID: in.AcademicSessionID,
-		Title:             in.Title,
-		TeacherID:         in.TeacherID,
-		Room:              in.Room,
-	}
-	if err := h.DB.Create(&d).Error; err != nil {
+	course, err := h.Service.Create(in)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, toCourseResp(d))
+	c.JSON(http.StatusCreated, toCourseResp(*course))
 }
 
 // list courses
@@ -72,43 +66,16 @@ func (h *CourseController) create(c *gin.Context) {
 func (h *CourseController) list(c *gin.Context) {
 	var qin req.ListCourseQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Course{})
-	if v := qin.DepartmentID; v != "" {
-		base = base.Where("department_id = ?", v)
-	}
-	if v := qin.ProgramID; v != "" {
-		base = base.Where("program_id = ?", v)
-	}
-	if v := qin.SubjectID; v != "" {
-		base = base.Where("subject_id = ?", v)
-	}
-	if v := qin.AcademicSessionID; v != "" {
-		base = base.Where("academic_session_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
+	courses, total, limit, offset, err := h.Service.List(qin)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
 		return
 	}
-	if qin.Limit <= 0 {
-		qin.Limit = 100
-	}
-	if qin.Limit > 500 {
-		qin.Limit = 500
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var dd []m.Course
-	if err := base.Order("title asc").Limit(qin.Limit).Offset(qin.Offset).Find(&dd).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Course, 0, len(dd))
-	for _, d := range dd {
+	items := make([]resp.Course, 0, len(courses))
+	for _, d := range courses {
 		items = append(items, toCourseResp(d))
 	}
-	c.JSON(http.StatusOK, resp.List[resp.Course]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.Course]{Items: items, Page: resp.Page{Limit: limit, Offset: offset, Total: total}})
 }
 
 // get course
@@ -121,12 +88,16 @@ func (h *CourseController) list(c *gin.Context) {
 // @Router /courses/{id} [get]
 func (h *CourseController) get(c *gin.Context) {
 	id := c.Param("id")
-	var d m.Course
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	course, err := h.Service.Get(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, toCourseResp(d))
+	c.JSON(http.StatusOK, toCourseResp(*course))
 }
 
 // update course
@@ -146,37 +117,16 @@ func (h *CourseController) update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var d m.Course
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	course, err := h.Service.Update(id, in)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	if in.SubjectID != "" {
-		d.SubjectID = in.SubjectID
-	}
-	if in.DepartmentID != "" {
-		d.DepartmentID = in.DepartmentID
-	}
-	if in.ProgramID != nil {
-		d.ProgramID = in.ProgramID
-	}
-	if in.AcademicSessionID != "" {
-		d.AcademicSessionID = in.AcademicSessionID
-	}
-	if in.Title != "" {
-		d.Title = in.Title
-	}
-	if in.TeacherID != nil {
-		d.TeacherID = in.TeacherID
-	}
-	if in.Room != "" {
-		d.Room = in.Room
-	}
-	if err := h.DB.Save(&d).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, toCourseResp(d))
+	c.JSON(http.StatusOK, toCourseResp(*course))
 }
 
 // delete course
@@ -188,8 +138,12 @@ func (h *CourseController) update(c *gin.Context) {
 // @Router /courses/{id} [delete]
 func (h *CourseController) delete(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.DB.Delete(&m.Course{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	if err := h.Service.Delete(id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})

@@ -1,15 +1,19 @@
 package request
 
 type CreateStudent struct {
-	IndividualNumber string `json:"individualNumber" binding:"required"`
-	FullName         string `json:"fullName" binding:"required"`
-	GroupID          string `json:"groupId"`
+	IndividualNumber string  `json:"individualNumber" binding:"required"`
+	FullName         string  `json:"fullName" binding:"required"`
+	GroupID          *string `json:"groupId"`
+	StartYear        *int    `json:"startYear"`
+	EndYear          *int    `json:"endYear"`
 }
 
 type UpdateStudent struct {
-	IndividualNumber string `json:"individualNumber"`
-	FullName         string `json:"fullName"`
-	GroupID          string `json:"groupId"`
+	IndividualNumber *string `json:"individualNumber"`
+	FullName         *string `json:"fullName"`
+	GroupID          *string `json:"groupId"`
+	StartYear        *int    `json:"startYear"`
+	EndYear          *int    `json:"endYear"`
 }
 
 type ListStudentQuery struct{ PaginationQuery }

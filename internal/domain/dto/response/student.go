@@ -5,4 +5,6 @@ type Student struct {
 	IndividualNumber string  `json:"individualNumber"`
 	FullName         string  `json:"fullName"`
 	GroupID          *string `json:"groupId"`
+	StartYear        *int    `json:"startYear,omitempty"`
+	EndYear          *int    `json:"endYear,omitempty"`
 }

@@ -15,6 +15,8 @@ import (
 
 	"gradeflow/internal/config"
 	ctr "gradeflow/internal/controllers"
+	"gradeflow/internal/repository"
+	"gradeflow/internal/service"
 )
 
 type assessTestCtx struct {
@@ -43,7 +45,11 @@ func setupAssessTest(t *testing.T) assessTestCtx {
 
 	cfg := config.Config{JWTSecret: "test", AppURL: "http://localhost"}
 	r := gin.New()
-	ctrl := ctr.NewAssessmentController(db, cfg)
+	assessmentRepo := repository.NewAssessmentRepository(db)
+	gradeRepo := repository.NewAssessmentGradeRepository(db)
+	assessmentSvc := service.NewAssessmentService(assessmentRepo)
+	gradeSvc := service.NewAssessmentGradeService(gradeRepo, assessmentRepo)
+	ctrl := ctr.NewAssessmentController(db, cfg, assessmentSvc, gradeSvc)
 	grp := r.Group("/api")
 	ctrl.RegisterRoutes(grp)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "u1", "exp": time.Now().Add(15 * time.Minute).Unix()})
@@ -57,7 +63,7 @@ func TestAssessmentCRUDAndBulkGrades(t *testing.T) {
 
 	// create assessment
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/assessments", strings.NewReader(`{"courseId":"c1","type":"exam","dateAt":"`+date+`","room":"R1","scale":"points","maxPts":100}`))
+	req := httptest.NewRequest("POST", "/api/assessments", strings.NewReader(`{"courseId":"c1","type":"exam","dateAt":"`+date+`","room":"R1","scale":"hundred","maxPts":100}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
 	ctx.r.ServeHTTP(w, req)
@@ -88,7 +94,7 @@ func TestAssessmentCRUDAndBulkGrades(t *testing.T) {
 
 	// bulk grades
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest("POST", "/api/assessments/"+id+"/grades/bulk", strings.NewReader(`[{"studentId":"st1","scale":"points","valueNum":90},{"studentId":"st2","scale":"passfail","valuePass":true}]`))
+	req = httptest.NewRequest("POST", "/api/assessments/"+id+"/grades/bulk", strings.NewReader(`[{"studentId":"st1","valueNum":90},{"studentId":"st2","scale":"passfail","valuePass":true}]`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ctx.jwt)
 	ctx.r.ServeHTTP(w, req)

@@ -10,16 +10,18 @@ import (
 	req "gradeflow/internal/domain/dto/request"
 	resp "gradeflow/internal/domain/dto/response"
 	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/service"
 	"gradeflow/pkg/middleware"
 )
 
 type EnrollmentController struct {
-	DB  *gorm.DB
-	Cfg config.Config
+	DB      *gorm.DB
+	Cfg     config.Config
+	Service service.EnrollmentService
 }
 
-func NewEnrollmentController(db *gorm.DB, cfg config.Config) *EnrollmentController {
-	return &EnrollmentController{DB: db, Cfg: cfg}
+func NewEnrollmentController(db *gorm.DB, cfg config.Config, svc service.EnrollmentService) *EnrollmentController {
+	return &EnrollmentController{DB: db, Cfg: cfg, Service: svc}
 }
 
 func (h *EnrollmentController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -47,12 +49,12 @@ func (h *EnrollmentController) create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	d := m.Enrollment{CourseID: in.CourseID, StudentID: in.StudentID}
-	if err := h.DB.Create(&d).Error; err != nil {
+	enrollment, err := h.Service.Create(in)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, toEnrollmentResp(d))
+	c.JSON(http.StatusCreated, toEnrollmentResp(*enrollment))
 }
 
 // list enrollments
@@ -64,37 +66,16 @@ func (h *EnrollmentController) create(c *gin.Context) {
 func (h *EnrollmentController) list(c *gin.Context) {
 	var qin req.ListEnrollmentQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Enrollment{})
-	if v := qin.CourseID; v != "" {
-		base = base.Where("course_id = ?", v)
-	}
-	if v := qin.StudentID; v != "" {
-		base = base.Where("student_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
+	enrollments, total, limit, offset, err := h.Service.List(qin)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
 		return
 	}
-	if qin.Limit <= 0 {
-		qin.Limit = 200
-	}
-	if qin.Limit > 1000 {
-		qin.Limit = 1000
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var dd []m.Enrollment
-	if err := base.Limit(qin.Limit).Offset(qin.Offset).Find(&dd).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Enrollment, 0, len(dd))
-	for _, d := range dd {
+	items := make([]resp.Enrollment, 0, len(enrollments))
+	for _, d := range enrollments {
 		items = append(items, toEnrollmentResp(d))
 	}
-	c.JSON(http.StatusOK, resp.List[resp.Enrollment]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.Enrollment]{Items: items, Page: resp.Page{Limit: limit, Offset: offset, Total: total}})
 }
 
 // get enrollment
@@ -107,12 +88,16 @@ func (h *EnrollmentController) list(c *gin.Context) {
 // @Router /enrollments/{id} [get]
 func (h *EnrollmentController) get(c *gin.Context) {
 	id := c.Param("id")
-	var d m.Enrollment
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	enrollment, err := h.Service.Get(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, toEnrollmentResp(d))
+	c.JSON(http.StatusOK, toEnrollmentResp(*enrollment))
 }
 
 // update enrollment
@@ -132,22 +117,16 @@ func (h *EnrollmentController) update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var d m.Enrollment
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	enrollment, err := h.Service.Update(id, in)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	if in.CourseID != "" {
-		d.CourseID = in.CourseID
-	}
-	if in.StudentID != "" {
-		d.StudentID = in.StudentID
-	}
-	if err := h.DB.Save(&d).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, toEnrollmentResp(d))
+	c.JSON(http.StatusOK, toEnrollmentResp(*enrollment))
 }
 
 // delete enrollment
@@ -159,8 +138,12 @@ func (h *EnrollmentController) update(c *gin.Context) {
 // @Router /enrollments/{id} [delete]
 func (h *EnrollmentController) delete(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.DB.Delete(&m.Enrollment{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	if err := h.Service.Delete(id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})

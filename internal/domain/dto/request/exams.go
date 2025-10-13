@@ -43,6 +43,9 @@ type ListExamAttemptQuery struct {
 	PaginationQuery
 	AssessmentID string `form:"assessmentId"`
 	StudentID    string `form:"studentId"`
+	CourseID     string `form:"courseId"`
+	From         string `form:"from"` // RFC3339 dateAt >=
+	To           string `form:"to"`   // RFC3339 dateAt <=
 }
 
 type CreateCredit struct {

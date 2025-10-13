@@ -11,16 +11,19 @@ import (
 	req "gradeflow/internal/domain/dto/request"
 	resp "gradeflow/internal/domain/dto/response"
 	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/service"
 	"gradeflow/pkg/middleware"
 )
 
 type LessonController struct {
-	DB  *gorm.DB
-	Cfg config.Config
+	DB            *gorm.DB
+	Cfg           config.Config
+	LessonSvc     service.LessonService
+	AttendanceSvc service.AttendanceService
 }
 
-func NewLessonController(db *gorm.DB, cfg config.Config) *LessonController {
-	return &LessonController{DB: db, Cfg: cfg}
+func NewLessonController(db *gorm.DB, cfg config.Config, lessonSvc service.LessonService, attendanceSvc service.AttendanceService) *LessonController {
+	return &LessonController{DB: db, Cfg: cfg, LessonSvc: lessonSvc, AttendanceSvc: attendanceSvc}
 }
 
 func (h *LessonController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -51,50 +54,38 @@ func (h *LessonController) create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	d := m.Lesson{CourseID: in.CourseID, StartsAt: in.StartsAt, EndsAt: in.EndsAt, Room: in.Room, Kind: in.Kind}
-	if err := h.DB.Create(&d).Error; err != nil {
+	lesson, err := h.LessonSvc.Create(in)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, toLessonResp(d))
+	c.JSON(http.StatusCreated, toLessonResp(*lesson))
 }
 
 // @Summary List lessons
 // @Tags lessons
 // @Produce json
+// @Param courseId query string false "filter by course"
+// @Param sessionId query string false "filter by academic session"
+// @Param from query string false "starts/ends window from (RFC3339)"
+// @Param to query string false "starts/ends window to (RFC3339)"
+// @Param limit query int false "limit"
+// @Param offset query int false "offset"
 // @Success 200 {object} response.LessonList
 // @Router /lessons [get]
 func (h *LessonController) list(c *gin.Context) {
 	var qin req.ListLessonQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Lesson{})
-	if v := qin.CourseID; v != "" {
-		base = base.Where("course_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
+	lessons, total, appliedLimit, appliedOffset, err := h.LessonSvc.List(qin)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
 		return
 	}
-	if qin.Limit <= 0 {
-		qin.Limit = 200
-	}
-	if qin.Limit > 1000 {
-		qin.Limit = 1000
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var dd []m.Lesson
-	if err := base.Order("starts_at asc").Limit(qin.Limit).Offset(qin.Offset).Find(&dd).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Lesson, 0, len(dd))
-	for _, d := range dd {
+	items := make([]resp.Lesson, 0, len(lessons))
+	for _, d := range lessons {
 		items = append(items, toLessonResp(d))
 	}
-	c.JSON(http.StatusOK, resp.List[resp.Lesson]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.Lesson]{Items: items, Page: resp.Page{Limit: appliedLimit, Offset: appliedOffset, Total: total}})
 }
 
 // @Summary Get lesson
@@ -106,12 +97,16 @@ func (h *LessonController) list(c *gin.Context) {
 // @Router /lessons/{id} [get]
 func (h *LessonController) get(c *gin.Context) {
 	id := c.Param("id")
-	var d m.Lesson
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	lesson, err := h.LessonSvc.Get(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, toLessonResp(d))
+	c.JSON(http.StatusOK, toLessonResp(*lesson))
 }
 
 // @Summary Update lesson
@@ -130,31 +125,16 @@ func (h *LessonController) update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var d m.Lesson
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	lesson, err := h.LessonSvc.Update(id, in)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	if in.CourseID != "" {
-		d.CourseID = in.CourseID
-	}
-	if in.StartsAt != nil {
-		d.StartsAt = *in.StartsAt
-	}
-	if in.EndsAt != nil {
-		d.EndsAt = *in.EndsAt
-	}
-	if in.Room != "" {
-		d.Room = in.Room
-	}
-	if in.Kind != "" {
-		d.Kind = in.Kind
-	}
-	if err := h.DB.Save(&d).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, toLessonResp(d))
+	c.JSON(http.StatusOK, toLessonResp(*lesson))
 }
 
 // @Summary Delete lesson
@@ -165,8 +145,12 @@ func (h *LessonController) update(c *gin.Context) {
 // @Router /lessons/{id} [delete]
 func (h *LessonController) delete(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.DB.Delete(&m.Lesson{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	if err := h.LessonSvc.Delete(id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -182,34 +166,17 @@ func (h *LessonController) listAttendance(c *gin.Context) {
 	lessonID := c.Param("id")
 	var qin req.ListAttendanceQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Attendance{}).Where("lesson_id = ?", lessonID)
-	if v := qin.StudentID; v != "" {
-		base = base.Where("student_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	if qin.Limit <= 0 {
-		qin.Limit = 100
-	}
-	if qin.Limit > 1000 {
-		qin.Limit = 1000
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var aa []m.Attendance
-	if err := base.Limit(qin.Limit).Offset(qin.Offset).Find(&aa).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Attendance, 0, len(aa))
-	for _, a := range aa {
-		items = append(items, toAttendanceResp(a))
-	}
-	c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+    qin.LessonID = lessonID
+    records, total, appliedLimit, appliedOffset, err := h.AttendanceSvc.List(qin)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
+        return
+    }
+    items := make([]resp.Attendance, 0, len(records))
+    for _, a := range records {
+        items = append(items, toAttendanceResp(a))
+    }
+    c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: appliedLimit, Offset: appliedOffset, Total: total}})
 }
 
 // @Summary Bulk upsert attendance for lesson
@@ -228,40 +195,27 @@ func (h *LessonController) bulkAttendance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	// who marks
-	var markedBy string
-	if v, ok := c.Get("user"); ok {
-		if u, ok2 := v.(*m.User); ok2 {
-			markedBy = u.ID
-		}
-	}
-	now := time.Now()
-	// upsert per entry
-	for _, e := range entries {
-		if e.Status != "present" && e.Status != "absent" && e.Status != "late" {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid status"})
-			return
-		}
-		var rec m.Attendance
-		if err := h.DB.Where("lesson_id = ? AND student_id = ?", lessonID, e.StudentID).First(&rec).Error; err == nil {
-			rec.Status = e.Status
-			if markedBy != "" {
-				rec.MarkedBy = markedBy
-			}
-			rec.MarkedAt = now
-			_ = h.DB.Save(&rec).Error
+    var markedBy *string
+    if v, ok := c.Get("user"); ok {
+        if u, ok2 := v.(*m.User); ok2 {
+            id := u.ID
+            markedBy = &id
+        }
+    }
+	records, err := h.AttendanceSvc.BulkUpsert(lessonID, entries, markedBy)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
 		} else {
-			rec = m.Attendance{LessonID: lessonID, StudentID: e.StudentID, Status: e.Status, MarkedBy: markedBy, MarkedAt: now}
-			_ = h.DB.Create(&rec).Error
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		}
+		return
 	}
-	var out []m.Attendance
-	_ = h.DB.Where("lesson_id = ?", lessonID).Find(&out).Error
-	items := make([]resp.Attendance, 0, len(out))
-	for _, a := range out {
-		items = append(items, toAttendanceResp(a))
-	}
-	c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: len(items), Offset: 0, Total: int64(len(items))}})
+    items := make([]resp.Attendance, 0, len(records))
+    for _, a := range records {
+        items = append(items, toAttendanceResp(a))
+    }
+    c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: len(items), Offset: 0, Total: int64(len(items))}})
 }
 
 func toLessonResp(l m.Lesson) resp.Lesson {

@@ -11,16 +11,18 @@ import (
 	req "gradeflow/internal/domain/dto/request"
 	resp "gradeflow/internal/domain/dto/response"
 	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/service"
 	"gradeflow/pkg/middleware"
 )
 
 type AttendanceController struct {
-	DB  *gorm.DB
-	Cfg config.Config
+	DB      *gorm.DB
+	Cfg     config.Config
+	Service service.AttendanceService
 }
 
-func NewAttendanceController(db *gorm.DB, cfg config.Config) *AttendanceController {
-	return &AttendanceController{DB: db, Cfg: cfg}
+func NewAttendanceController(db *gorm.DB, cfg config.Config, svc service.AttendanceService) *AttendanceController {
+	return &AttendanceController{DB: db, Cfg: cfg, Service: svc}
 }
 
 func (h *AttendanceController) RegisterRoutes(rg *gin.RouterGroup) {
@@ -47,63 +49,47 @@ func (h *AttendanceController) create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	if in.Status != "present" && in.Status != "absent" && in.Status != "late" {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid status"})
-		return
-	}
-	var markedBy string
+	var markedBy *string
 	if v, ok := c.Get("user"); ok {
 		if u, ok2 := v.(*m.User); ok2 {
-			markedBy = u.ID
+			id := u.ID
+			markedBy = &id
 		}
 	}
-	d := m.Attendance{LessonID: in.LessonID, StudentID: in.StudentID, Status: in.Status, MarkedBy: markedBy, MarkedAt: time.Now()}
-	if err := h.DB.Create(&d).Error; err != nil {
+	d, err := h.Service.Create(in, markedBy)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, attendanceToResp(d))
+	c.JSON(http.StatusCreated, attendanceToResp(*d))
 }
 
 // @Summary List attendance
 // @Tags attendance
 // @Produce json
+// @Param lessonId query string false "filter by lesson"
+// @Param studentId query string false "filter by student"
+// @Param courseId query string false "filter by course"
+// @Param sessionId query string false "filter by academic session"
+// @Param from query string false "marked from (RFC3339)"
+// @Param to query string false "marked to (RFC3339)"
+// @Param limit query int false "limit"
+// @Param offset query int false "offset"
 // @Success 200 {object} response.AttendanceList
 // @Router /attendance [get]
 func (h *AttendanceController) list(c *gin.Context) {
 	var qin req.ListAttendanceQuery
 	_ = c.ShouldBindQuery(&qin)
-	base := h.DB.Model(&m.Attendance{})
-	if v := qin.LessonID; v != "" {
-		base = base.Where("lesson_id = ?", v)
-	}
-	if v := qin.StudentID; v != "" {
-		base = base.Where("student_id = ?", v)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
+	records, total, appliedLimit, appliedOffset, err := h.Service.List(qin)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
 		return
 	}
-	if qin.Limit <= 0 {
-		qin.Limit = 100
-	}
-	if qin.Limit > 1000 {
-		qin.Limit = 1000
-	}
-	if qin.Offset < 0 {
-		qin.Offset = 0
-	}
-	var dd []m.Attendance
-	if err := base.Limit(qin.Limit).Offset(qin.Offset).Find(&dd).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
-		return
-	}
-	items := make([]resp.Attendance, 0, len(dd))
-	for _, d := range dd {
+	items := make([]resp.Attendance, 0, len(records))
+	for _, d := range records {
 		items = append(items, attendanceToResp(d))
 	}
-	c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: qin.Limit, Offset: qin.Offset, Total: total}})
+	c.JSON(http.StatusOK, resp.List[resp.Attendance]{Items: items, Page: resp.Page{Limit: appliedLimit, Offset: appliedOffset, Total: total}})
 }
 
 // @Summary Get attendance
@@ -115,12 +101,16 @@ func (h *AttendanceController) list(c *gin.Context) {
 // @Router /attendance/{id} [get]
 func (h *AttendanceController) get(c *gin.Context) {
 	id := c.Param("id")
-	var d m.Attendance
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+	att, err := h.Service.Get(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, attendanceToResp(d))
+	c.JSON(http.StatusOK, attendanceToResp(*att))
 }
 
 // @Summary Update attendance
@@ -139,23 +129,23 @@ func (h *AttendanceController) update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
 		return
 	}
-	var d m.Attendance
-	if err := h.DB.First(&d, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
-		return
-	}
-	if in.Status != "" {
-		if in.Status != "present" && in.Status != "absent" && in.Status != "late" {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: "invalid status"})
-			return
+	var markedBy *string
+	if v, ok := c.Get("user"); ok {
+		if u, ok2 := v.(*m.User); ok2 {
+			id := u.ID
+			markedBy = &id
 		}
-		d.Status = in.Status
 	}
-	if err := h.DB.Save(&d).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	att, err := h.Service.Update(id, in, markedBy)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, attendanceToResp(d))
+	c.JSON(http.StatusOK, attendanceToResp(*att))
 }
 
 // @Summary Delete attendance
@@ -166,8 +156,12 @@ func (h *AttendanceController) update(c *gin.Context) {
 // @Router /attendance/{id} [delete]
 func (h *AttendanceController) delete(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.DB.Delete(&m.Attendance{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+	if err := h.Service.Delete(id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
+		} else {
+			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, resp.OK{OK: true})

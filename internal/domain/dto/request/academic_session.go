@@ -16,4 +16,8 @@ type UpdateAcademicSession struct {
 	EndsAt   *time.Time `json:"endsAt"`
 }
 
-type ListAcademicSessionQuery struct{ PaginationQuery }
+type ListAcademicSessionQuery struct {
+	PaginationQuery
+	From string `form:"from"` // RFC3339
+	To   string `form:"to"`   // RFC3339
+}

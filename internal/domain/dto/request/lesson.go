@@ -20,7 +20,10 @@ type UpdateLesson struct {
 
 type ListLessonQuery struct {
 	PaginationQuery
-	CourseID string `form:"courseId"`
+	CourseID  string `form:"courseId"`
+	SessionID string `form:"sessionId"`
+	From      string `form:"from"` // RFC3339
+	To        string `form:"to"`   // RFC3339
 }
 
 type AttendanceBulkItem struct {
