@@ -4,150 +4,88 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 
-	"gradeflow/internal/config"
-	req "gradeflow/internal/domain/dto/request"
-	resp "gradeflow/internal/domain/dto/response"
-	m "gradeflow/internal/domain/models"
+	"gradeflow/internal/middleware"
 	"gradeflow/internal/service"
-	"gradeflow/pkg/middleware"
 )
 
+// StudentController exposes student endpoints.
 type StudentController struct {
-	DB      *gorm.DB
-	Cfg     config.Config
-	Service service.StudentService
+	students *service.StudentService
 }
 
-func NewStudentController(db *gorm.DB, cfg config.Config, svc service.StudentService) *StudentController {
-	return &StudentController{DB: db, Cfg: cfg, Service: svc}
+// NewStudentController creates controller.
+func NewStudentController(students *service.StudentService) *StudentController {
+	return &StudentController{students: students}
 }
 
-func (h *StudentController) RegisterRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/students")
-	g.Use(middleware.JWT(h.Cfg, h.DB))
-	g.POST("", middleware.AdminOrDean(), h.create)
-	g.GET("", h.list)
-	g.GET(":id", h.get)
-	g.PUT(":id", middleware.AdminOrDean(), h.update)
-	g.DELETE(":id", middleware.AdminOrDean(), h.delete)
+// RegisterRoutes wires student endpoints.
+func (c *StudentController) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/dashboard", c.dashboard)
+	rg.GET("/subjects", c.subjects)
+	rg.GET("/subjects/:subjectId/averages", c.subjectAverage)
 }
 
-// @Summary Create student
-// @Tags students
-// @Accept json
-// @Produce json
-// @Param input body request.CreateStudent true "student"
-// @Success 201 {object} response.Student
-// @Router /students [post]
-func (h *StudentController) create(c *gin.Context) {
-	var in req.CreateStudent
-	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		return
+func (c *StudentController) studentID(ctx *gin.Context) (uuid.UUID, bool) {
+	val, exists := ctx.Get(middleware.ContextUserIDKey)
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing student"})
+		return uuid.UUID{}, false
 	}
-	st, err := h.Service.Create(in)
+	idStr, ok := val.(string)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid student"})
+		return uuid.UUID{}, false
+	}
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		return
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid student id"})
+		return uuid.UUID{}, false
 	}
-	c.JSON(http.StatusCreated, toStudentResp(*st))
+	return id, true
 }
 
-// @Summary List students
-// @Tags students
-// @Produce json
-// @Success 200 {object} response.StudentList
-// @Router /students [get]
-func (h *StudentController) list(c *gin.Context) {
-	var qin req.ListStudentQuery
-	_ = c.ShouldBindQuery(&qin)
-	students, total, appliedLimit, appliedOffset, err := h.Service.List(qin.Limit, qin.Offset)
+func (c *StudentController) dashboard(ctx *gin.Context) {
+	studentID, ok := c.studentID(ctx)
+	if !ok {
+		return
+	}
+	resp, err := c.students.Dashboard(ctx.Request.Context(), studentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, resp.Error{Error: err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	items := make([]resp.Student, 0, len(students))
-	for _, s := range students {
-		items = append(items, toStudentResp(s))
-	}
-    c.JSON(http.StatusOK, resp.List[resp.Student]{Items: items, Page: resp.Page{Limit: appliedLimit, Offset: appliedOffset, Total: total}})
+	ctx.JSON(http.StatusOK, resp)
 }
 
-// @Summary Get student
-// @Tags students
-// @Produce json
-// @Param id path string true "student id"
-// @Success 200 {object} response.Student
-// @Router /students/{id} [get]
-func (h *StudentController) get(c *gin.Context) {
-	id := c.Param("id")
-	s, err := h.Service.Get(id)
+func (c *StudentController) subjects(ctx *gin.Context) {
+	studentID, ok := c.studentID(ctx)
+	if !ok {
+		return
+	}
+	resp, err := c.students.Subjects(ctx.Request.Context(), studentID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
-		} else {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, toStudentResp(*s))
+	ctx.JSON(http.StatusOK, resp)
 }
 
-// @Summary Update student
-// @Tags students
-// @Accept json
-// @Produce json
-// @Param id path string true "student id"
-// @Param input body request.UpdateStudent true "student"
-// @Success 200 {object} response.Student
-// @Router /students/{id} [put]
-func (h *StudentController) update(c *gin.Context) {
-	id := c.Param("id")
-	var in req.UpdateStudent
-	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
+func (c *StudentController) subjectAverage(ctx *gin.Context) {
+	studentID, ok := c.studentID(ctx)
+	if !ok {
 		return
 	}
-	s, err := h.Service.Update(id, in)
+	subjectID, err := uuid.Parse(ctx.Param("subjectId"))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
-		} else {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		}
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid subject id"})
 		return
 	}
-	c.JSON(http.StatusOK, toStudentResp(*s))
-}
-
-// @Summary Delete student
-// @Tags students
-// @Produce json
-// @Param id path string true "student id"
-// @Success 200 {object} map[string]bool
-// @Router /students/{id} [delete]
-func (h *StudentController) delete(c *gin.Context) {
-	id := c.Param("id")
-	if err := h.Service.Delete(id); err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, resp.Error{Error: "not found"})
-		} else {
-			c.JSON(http.StatusBadRequest, resp.Error{Error: err.Error()})
-		}
+	resp, err := c.students.SubjectAverage(ctx.Request.Context(), studentID, subjectID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-func toStudentResp(s m.Student) resp.Student {
-	return resp.Student{
-		ID:               s.ID,
-		IndividualNumber: s.IndividualNumber,
-		FullName:         s.FullName,
-		GroupID:          s.GroupID,
-		StartYear:        s.StartYear,
-		EndYear:          s.EndYear,
-	}
+	ctx.JSON(http.StatusOK, resp)
 }

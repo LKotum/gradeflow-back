@@ -1,23 +1,15 @@
 package request
 
-type CreateTeacher struct {
-	FullName     string  `json:"fullName" binding:"required"`
-	DepartmentID *string `json:"departmentId"`
-	Title        string  `json:"title"`
-	Rank         string  `json:"rank"`
-	UserID       *string `json:"userId"`
+// GradeUpsertRequest is used to create or update a grade for a session.
+type GradeUpsertRequest struct {
+	SessionID string   `json:"sessionId" binding:"required"`
+	StudentID string   `json:"studentId" binding:"required"`
+	Value     float32  `json:"value" binding:"required"`
+	Notes     *string  `json:"notes,omitempty"`
 }
 
-type UpdateTeacher struct {
-	FullName     *string `json:"fullName"`
-	DepartmentID *string `json:"departmentId"`
-	Title        *string `json:"title"`
-	Rank         *string `json:"rank"`
-	UserID       *string `json:"userId"`
-}
-
-type ListTeacherQuery struct {
-	PaginationQuery
-	DepartmentID string `form:"departmentId"`
-	Q            string `form:"q"`
+// GradeUpdateRequest updates value/notes for an existing grade.
+type GradeUpdateRequest struct {
+	Value float32  `json:"value" binding:"required"`
+	Notes *string  `json:"notes,omitempty"`
 }

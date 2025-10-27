@@ -1,31 +1,18 @@
 package request
 
-type Register struct {
-	Email    string `json:"email" binding:"required,email"`
-	FullName string `json:"fullName" binding:"required"`
-	Role     string `json:"role" binding:"required"`
+// AdminLoginRequest captures credentials for admin authentication.
+type AdminLoginRequest struct {
+	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required,min=8"`
 }
 
-type Login struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-	TOTP     string `json:"totp"`
-}
-
-type Refresh struct {
-	Refresh string `json:"refresh" binding:"required"`
-}
-
-type RequestReset struct {
-	Email string `json:"email" binding:"required,email"`
-}
-
-type ResetPassword struct {
-	Token    string `json:"token" binding:"required"`
+// INSLoginRequest is used by students, teachers, and dean staff.
+type INSLoginRequest struct {
+	INS      string `json:"ins" binding:"required"`
 	Password string `json:"password" binding:"required,min=8"`
 }
 
-type Logout struct {
-	Refresh string `json:"refresh"`
+// RefreshTokenRequest requests a new access token from refresh token.
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
 }

@@ -2,117 +2,155 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base32"
-	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"gradeflow/internal/config"
-	m "gradeflow/internal/domain/models"
+	reqdto "gradeflow/internal/domain/dto/request"
+	respdto "gradeflow/internal/domain/dto/response"
+	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
-	"gradeflow/pkg/utils"
 )
 
+// ErrInvalidCredentials is returned when supplied credentials do not match.
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// AuthService orchestrates authentication and JWT token issuance.
 type AuthService struct {
-	Users  *repository.UserRepository
-	Tokens *repository.TokenRepository
-	RTS    utils.TokenStore
-	Cfg    config.Config
+	users      repository.UserRepository
+	jwtSecret  []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
+	now        func() time.Time
 }
 
-func NewAuthService(users *repository.UserRepository, tokens *repository.TokenRepository, rts utils.TokenStore, cfg config.Config) *AuthService {
-	return &AuthService{Users: users, Tokens: tokens, RTS: rts, Cfg: cfg}
+// NewAuthService constructs the service with dependencies.
+func NewAuthService(users repository.UserRepository, jwtSecret string, accessTTL, refreshTTL time.Duration) *AuthService {
+	return &AuthService{
+		users:      users,
+		jwtSecret:  []byte(jwtSecret),
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
+		now:        time.Now,
+	}
 }
 
-func (s *AuthService) HashPassword(pw string) (string, error) {
-	b, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-	return string(b), err
-}
-func (s *AuthService) CheckPassword(hash, pw string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pw))
+// LoginByINS authenticates using the individual number (students, teachers, staff).
+func (s *AuthService) LoginByINS(ctx context.Context, payload reqdto.INSLoginRequest) (*respdto.AuthResponse, error) {
+	user, err := s.users.GetByINS(ctx, payload.INS)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.Password)) != nil {
+		return nil, ErrInvalidCredentials
+	}
+	return s.issueTokens(ctx, user)
 }
 
-func (s *AuthService) CreateUser(ctx context.Context, email, fullName, role, password string) (*m.User, error) {
-	h, err := s.HashPassword(password)
+// LoginAdmin authenticates administrator via username.
+func (s *AuthService) LoginAdmin(ctx context.Context, payload reqdto.AdminLoginRequest) (*respdto.AuthResponse, error) {
+	user, err := s.users.GetByUsername(ctx, payload.Username)
+	if err != nil || user.Role != models.UserRoleAdmin {
+		return nil, ErrInvalidCredentials
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.Password)) != nil {
+		return nil, ErrInvalidCredentials
+	}
+	return s.issueTokens(ctx, user)
+}
+
+// Refresh exchanges a refresh token for a new pair.
+func (s *AuthService) Refresh(ctx context.Context, payload reqdto.RefreshTokenRequest) (*respdto.AuthResponse, error) {
+	token, err := jwt.ParseWithClaims(payload.RefreshToken, &jwtRegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return s.jwtSecret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	claims, ok := token.Claims.(*jwtRegisteredClaims)
+	if !ok || !token.Valid || claims.Type != "refresh" {
+		return nil, ErrInvalidCredentials
+	}
+	userID, parseErr := uuid.Parse(claims.Subject)
+	if parseErr != nil {
+		return nil, ErrInvalidCredentials
+	}
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	if user.RefreshToken == nil || user.RefreshToken.Token != payload.RefreshToken || user.RefreshToken.ExpiresAt.Before(s.now()) {
+		return nil, ErrInvalidCredentials
+	}
+	return s.issueTokens(ctx, user)
+}
+
+func (s *AuthService) issueTokens(ctx context.Context, user *models.User) (*respdto.AuthResponse, error) {
+	now := s.now()
+	accessExpires := now.Add(s.accessTTL)
+	refreshExpires := now.Add(s.refreshTTL)
+
+	accessClaims := jwtRegisteredClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.ID.String(),
+			ExpiresAt: jwt.NewNumericDate(accessExpires),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+		Type: "access",
+		Role: string(user.Role),
+	}
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString(s.jwtSecret)
 	if err != nil {
 		return nil, err
 	}
-	u := &m.User{Email: email, FullName: fullName, Role: role, PasswordHash: h, Status: "pending"}
-	if err := s.Users.Create(u); err != nil {
+
+	refreshClaims := jwtRegisteredClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.ID.String(),
+			ExpiresAt: jwt.NewNumericDate(refreshExpires),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+		Type: "refresh",
+		Role: string(user.Role),
+	}
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(s.jwtSecret)
+	if err != nil {
 		return nil, err
 	}
-	return u, nil
+
+	if err := s.users.UpsertRefreshToken(ctx, &models.RefreshToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: refreshExpires,
+	}); err != nil {
+		return nil, fmt.Errorf("persist refresh token: %w", err)
+	}
+
+	return &respdto.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    accessExpires,
+		User: respdto.UserSummary{
+			ID:         user.ID.String(),
+			Role:       user.Role,
+			INS:        user.INS,
+			Username:   user.Username,
+			Email:      user.Email,
+			FirstName:  user.FirstName,
+			LastName:   user.LastName,
+			MiddleName: user.MiddleName,
+			AvatarURL:  user.AvatarURL,
+		},
+	}, nil
 }
 
-func (s *AuthService) IssueTokens(ctx context.Context, u *m.User) (access string, refresh string, err error) {
-	now := time.Now()
-	acc := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":  u.ID,
-		"role": u.Role,
-		"exp":  now.Add(s.Cfg.AccessTTL).Unix(),
-	})
-	accStr, err := acc.SignedString([]byte(s.Cfg.JWTSecret))
-	if err != nil {
-		return "", "", err
-	}
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", "", err
-	}
-	rRaw := hex.EncodeToString(buf)
-	// Store refresh in Redis via TokenStore
-	if s.RTS != nil {
-		if err := s.RTS.Set(ctx, "refresh:"+rRaw, u.ID, s.Cfg.RefreshTTL); err != nil {
-			return "", "", err
-		}
-	}
-	return accStr, rRaw, nil
-}
-
-func (s *AuthService) VerifyPasswordLogin(ctx context.Context, email, password string) (*m.User, error) {
-	u, err := s.Users.ByEmail(email)
-	if err != nil {
-		return nil, ErrInvalidCredentials
-	}
-	if err := s.CheckPassword(u.PasswordHash, password); err != nil {
-		return nil, ErrInvalidCredentials
-	}
-	if u.Status != "active" {
-		return nil, ErrInvalidCredentials
-	}
-	return u, nil
-}
-
-func (s *AuthService) GenerateTOTPSecret() (string, error) {
-	b := make([]byte, 20)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
-}
-func (s *AuthService) VerifyTOTP(secret string, code string, now time.Time) bool {
-	slot := now.Unix() / 30
-	h := sha256.Sum256([]byte(secret + ":" + string(rune(slot))))
-	dec := int64(0)
-	for _, ch := range h[len(h)-3:] {
-		dec = dec*256 + int64(ch)
-	}
-	want := dec % 1000000
-	got := code
-	if len(got) != 6 {
-		return false
-	}
-	w := []byte{'0', '0', '0', '0', '0', '0'}
-	for i := 5; i >= 0; i-- {
-		w[i] = byte('0' + (want % 10))
-		want /= 10
-	}
-	return string(w) == got
+type jwtRegisteredClaims struct {
+	jwt.RegisteredClaims
+	Type string `json:"type"`
+	Role string `json:"role"`
 }

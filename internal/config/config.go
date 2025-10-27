@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	Cors        string        `env:"CORS" envDefault:"*"`
 	AppURL      string        `env:"APP_URL,required"`
 	JWTSecret   string        `env:"JWT_SECRET,required"`
 	AccessTTL   time.Duration `env:"ACCESS_TTL" envDefault:"15m"`
@@ -16,25 +17,8 @@ type Config struct {
 	PGURL       string        `env:"PG_URL,required"`
 	HTTPAddr    string        `env:"HTTP_ADDR" envDefault:":8080"`
 	APIBasePath string        `env:"API_BASE_PATH" envDefault:"/api"`
-	SMTP        SMTPConfig
-	Redis       RedisConfig
 	MinIO       MinIOConfig
 	Logging     LoggingConfig
-}
-
-type SMTPConfig struct {
-	Host      string `env:"SMTP_HOST"`
-	Port      int    `env:"SMTP_PORT" envDefault:"587"`
-	User      string `env:"SMTP_USER"`
-	Pass      string `env:"SMTP_PASS"`
-	FromEmail string `env:"SMTP_FROM_EMAIL"`
-	FromName  string `env:"SMTP_FROM_NAME" envDefault:"GradeFlow"`
-}
-
-type RedisConfig struct {
-	Addr     string `env:"REDIS_ADDR" envDefault:"redis:6379"`
-	Password string `env:"REDIS_PASSWORD"`
-	DB       int    `env:"REDIS_DB" envDefault:"0"`
 }
 
 type MinIOConfig struct {

@@ -1,179 +1,143 @@
 package app
 
 import (
-    "context"
-    "time"
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
-    "github.com/gin-contrib/cors"
-    "github.com/gin-gonic/gin"
-    "github.com/minio/minio-go/v7"
-    "github.com/minio/minio-go/v7/pkg/credentials"
-    "github.com/redis/go-redis/v9"
-    swaggerFiles "github.com/swaggo/files"
-    ginSwagger "github.com/swaggo/gin-swagger"
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-    "gradeflow/internal/config"
-    "gradeflow/internal/controllers"
-    edb "gradeflow/internal/migrations"
-    "gradeflow/internal/repository"
-    "gradeflow/internal/service"
-    "gradeflow/pkg/logger"
-    "gradeflow/pkg/middleware"
-    "gradeflow/pkg/utils"
+	"gradeflow/internal/config"
+	"gradeflow/internal/controllers"
+	"gradeflow/internal/domain/models"
+	"gradeflow/internal/middleware"
+	"gradeflow/internal/migrations"
+	gormrepo "gradeflow/internal/repository/gorm"
+	"gradeflow/internal/service"
 )
 
+// App aggregates API dependencies.
 type App struct {
 	Cfg    config.Config
-	DB     *gorm.DB
-	RDB    *redis.Client
 	Engine *gin.Engine
-	Tokens utils.TokenStore
+	DB     *gorm.DB
 	MinIO  *minio.Client
 }
 
-func New(cfg config.Config) *App {
-	gdb, err := gorm.Open(postgres.Open(cfg.PGURL), &gorm.Config{})
+// New constructs the application with wired dependencies.
+func New(cfg config.Config) (*App, error) {
+	db, err := gorm.Open(postgres.Open(cfg.PGURL), &gorm.Config{})
 	if err != nil {
-		logger.Fatal("gorm open failed", "error", err)
+		return nil, fmt.Errorf("connect database: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	if err := edb.AutoMigrateUp(ctx, gdb); err != nil {
-		logger.Fatal("migrate failed", "error", err)
+	if err := migrations.Run(ctx, db); err != nil {
+		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	// Redis (optional)
-	rdb := redis.NewClient(&redis.Options{Addr: cfg.Redis.Addr, Password: cfg.Redis.Password, DB: cfg.Redis.DB})
-	tokenStore := utils.NewRedisTokenStore(rdb)
+	minioClient, err := initMinIO(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("init minio: %w", err)
+	}
+
+	userRepo := gormrepo.NewUserRepository(db)
+	groupRepo := gormrepo.NewGroupRepository(db)
+	subjectRepo := gormrepo.NewSubjectRepository(db)
+	sessionRepo := gormrepo.NewSessionRepository(db)
+	gradeRepo := gormrepo.NewGradeRepository(db)
+
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
+	adminSvc := service.NewAdminService(userRepo)
+	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
+	teacherSvc := service.NewTeacherService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
+	studentSvc := service.NewStudentService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
+
+	authCtrl := controllers.NewAuthController(authSvc, userRepo)
+	adminCtrl := controllers.NewAdminController(adminSvc)
+	deanCtrl := controllers.NewDeanController(deanSvc)
+	teacherCtrl := controllers.NewTeacherController(teacherSvc)
+	studentCtrl := controllers.NewStudentController(studentSvc)
 
 	r := gin.New()
-	r.Use(gin.Recovery(), cors.Default())
-	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+	cfgCors := cors.Config{
+		AllowHeaders: []string{"Authorization", "Content-Type"},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
+	}
+	if cfg.Cors == "*" || cfg.Cors == "" {
+		cfgCors.AllowAllOrigins = true
+	} else {
+		cfgCors.AllowOrigins = strings.Split(cfg.Cors, ",")
+	}
+	r.Use(gin.Recovery(), cors.New(cfgCors))
+
+	r.GET("/healthz", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Public API (no auth) and Private API (JWT)
-	apiPublic := r.Group("/api")
-	api := r.Group("/api")
-	api.Use(middleware.JWT(cfg, gdb))
-	auth := controllers.NewAuthController(gdb, cfg, tokenStore)
-	// Auth endpoints manage their own protection for /me and /logout
-	auth.RegisterRoutes(apiPublic.Group("/auth"))
+	public := r.Group(cfg.APIBasePath)
+	authCtrl.RegisterPublicRoutes(public.Group("/auth"))
 
-	// Departments (admin or dean for mutations; already enforced inside controllers if any)
-	dept := controllers.NewDepartmentController(gdb, cfg)
-	dept.RegisterRoutes(api)
+	private := r.Group(cfg.APIBasePath)
+	private.Use(middleware.JWTAuth([]byte(cfg.JWTSecret)))
+	authCtrl.RegisterPrivateRoutes(private.Group("/auth"))
 
-	prog := controllers.NewProgramController(gdb, cfg)
-	prog.RegisterRoutes(api)
+	adminRoutes := private.Group("/admin")
+	adminRoutes.Use(middleware.RequireRoles(string(models.UserRoleAdmin)))
+	adminCtrl.RegisterRoutes(adminRoutes)
 
-	subj := controllers.NewSubjectController(gdb, cfg)
-	subj.RegisterRoutes(api)
+	deanRoutes := private.Group("/dean")
+	deanRoutes.Use(middleware.RequireRoles(string(models.UserRoleDean)))
+	deanCtrl.RegisterRoutes(deanRoutes)
 
-	grp := controllers.NewGroupController(gdb, cfg)
-	grp.RegisterRoutes(api)
+	teacherRoutes := private.Group("/teacher")
+	teacherRoutes.Use(middleware.RequireRoles(string(models.UserRoleTeacher)))
+	teacherCtrl.RegisterRoutes(teacherRoutes)
 
-	studentRepo := repository.NewStudentRepository(gdb)
-	studentService := service.NewStudentService(studentRepo)
-	stu := controllers.NewStudentController(gdb, cfg, studentService)
-	stu.RegisterRoutes(api)
+	studentRoutes := private.Group("/student")
+	studentRoutes.Use(middleware.RequireRoles(string(models.UserRoleStudent)))
+	studentCtrl.RegisterRoutes(studentRoutes)
 
-	attendanceRepo := repository.NewAttendanceRepository(gdb)
-	attendanceService := service.NewAttendanceService(attendanceRepo)
-	lessonRepo := repository.NewLessonRepository(gdb)
-	lessonService := service.NewLessonService(lessonRepo)
-	courseRepo := repository.NewCourseRepository(gdb)
-	courseService := service.NewCourseService(courseRepo)
-	enrollmentRepo := repository.NewEnrollmentRepository(gdb)
-	enrollmentService := service.NewEnrollmentService(enrollmentRepo)
-	assessmentRepo := repository.NewAssessmentRepository(gdb)
-	assessmentService := service.NewAssessmentService(assessmentRepo)
-	gradeRepo := repository.NewAssessmentGradeRepository(gdb)
-	gradeService := service.NewAssessmentGradeService(gradeRepo, assessmentRepo)
+	return &App{Cfg: cfg, Engine: r, DB: db, MinIO: minioClient}, nil
+}
 
-	course := controllers.NewCourseController(gdb, cfg, courseService)
-	course.RegisterRoutes(api)
+// Run starts the HTTP server.
+func (a *App) Run() error {
+	return a.Engine.Run(a.Cfg.HTTPAddr)
+}
 
-	enr := controllers.NewEnrollmentController(gdb, cfg, enrollmentService)
-	enr.RegisterRoutes(api)
-
-	lesson := controllers.NewLessonController(gdb, cfg, lessonService, attendanceService)
-	lesson.RegisterRoutes(api)
-
-	att := controllers.NewAttendanceController(gdb, cfg, attendanceService)
-	att.RegisterRoutes(api)
-
-	asm := controllers.NewAssessmentController(gdb, cfg, assessmentService, gradeService)
-	asm.RegisterRoutes(api)
-
-	gr := controllers.NewAssessmentGradeController(gdb, cfg, gradeService)
-	gr.RegisterRoutes(api)
-
-	acs := controllers.NewAcademicSessionController(gdb, cfg)
-	acs.RegisterRoutes(api)
-
-	// Schedule and Journal
-	sch := controllers.NewScheduleController(gdb, cfg)
-	sch.RegisterRoutes(api)
-
-	jr := controllers.NewJournalController(gdb, cfg)
-	jr.RegisterRoutes(api)
-
-	report := controllers.NewReportController(gdb, cfg)
-	report.RegisterRoutes(api)
-
-	rating := controllers.NewRatingController(gdb, cfg)
-	rating.RegisterRoutes(api)
-
-	// Teachers, Staff, Admins
-	teacher := controllers.NewTeacherController(gdb, cfg)
-	teacher.RegisterRoutes(api)
-
-	staff := controllers.NewStaffController(gdb, cfg)
-	staff.RegisterRoutes(api)
-
-	admin := controllers.NewAdminController(gdb, cfg)
-	admin.RegisterRoutes(api)
-
-	// Practices and Exam Sessions / Attempts / Credits
-	pr := controllers.NewPracticeController(gdb, cfg)
-	pr.RegisterRoutes(api)
-
-	exs := controllers.NewExamSessionController(gdb, cfg)
-	exs.RegisterRoutes(api)
-
-	ea := controllers.NewExamAttemptController(gdb, cfg)
-	ea.RegisterRoutes(api)
-
-	cr := controllers.NewCreditController(gdb, cfg)
-	cr.RegisterRoutes(api)
-
-	// MinIO (optional)
-	var mc *minio.Client
-	if cfg.MinIO.Endpoint != "" && cfg.MinIO.AccessKey != "" {
-		client, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
-			Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
-			Secure: cfg.MinIO.UseSSL,
-		})
+func initMinIO(ctx context.Context, cfg config.Config) (*minio.Client, error) {
+	if cfg.MinIO.Endpoint == "" || cfg.MinIO.AccessKey == "" || cfg.MinIO.SecretKey == "" {
+		return nil, nil
+	}
+	client, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
+		Secure: cfg.MinIO.UseSSL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, bucket := range []string{cfg.MinIO.BucketAvatars, cfg.MinIO.BucketReports} {
+		if bucket == "" {
+			continue
+		}
+		exists, err := client.BucketExists(ctx, bucket)
 		if err != nil {
-			logger.Warn("minio init error", "error", err)
-		} else {
-			mc = client
-			// Ensure buckets
-			for _, b := range []string{cfg.MinIO.BucketAvatars, cfg.MinIO.BucketReports} {
-				if b == "" {
-					continue
-				}
-				exists, err := mc.BucketExists(ctx, b)
-				if err == nil && !exists {
-					if err := mc.MakeBucket(ctx, b, minio.MakeBucketOptions{}); err != nil {
-						logger.Warn("minio make bucket failed", "bucket", b, "error", err)
-					}
-				}
+			return nil, err
+		}
+		if !exists {
+			if err := client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
+				return nil, err
 			}
 		}
 	}
-
-	return &App{Cfg: cfg, DB: gdb, RDB: rdb, Engine: r, Tokens: tokenStore, MinIO: mc}
+	return client, nil
 }

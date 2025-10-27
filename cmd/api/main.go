@@ -1,6 +1,6 @@
 // @title       GradeFlow API
 // @version     0.1.0
-// @description API for schedule, assessments, attendance and grades.
+// @description GradeFlow management API.
 // @BasePath    /
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -19,21 +19,21 @@ import (
 )
 
 func main() {
-	// Load config once to configure Swagger BasePath
 	cfg := config.Load()
 	if _, err := logger.Init(cfg.Logging); err != nil {
 		fmt.Fprintf(os.Stderr, "logger init: %v\n", err)
 		os.Exit(1)
 	}
 	defer logger.Sync()
+
 	docs.SwaggerInfo.BasePath = cfg.APIBasePath
 
-	// Build app with already loaded configuration
-	a := app.New(cfg)
-	srv := a.Engine
-	addr := a.Cfg.HTTPAddr
-	logger.Info("API listening", "addr", addr)
-	if err := srv.Run(addr); err != nil {
+	application, err := app.New(cfg)
+	if err != nil {
+		logger.Fatal("app init failed", "error", err)
+	}
+	logger.Info("API listening", "addr", cfg.HTTPAddr)
+	if err := application.Run(); err != nil {
 		logger.Fatal("server stopped", "error", err)
 	}
 }

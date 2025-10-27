@@ -1,16 +1,12 @@
 package request
 
-type CreateAdmin struct {
-	FullName string  `json:"fullName" binding:"required"`
-	UserID   *string `json:"userId"`
-}
-
-type UpdateAdmin struct {
-	FullName *string `json:"fullName"`
-	UserID   *string `json:"userId"`
-}
-
-type ListAdminQuery struct {
-	PaginationQuery
-	Q string `form:"q"`
+// CreateDeanRequest defines payload to create dean office staff.
+type CreateDeanRequest struct {
+	INS        string  `json:"ins" binding:"required"`
+	Password   string  `json:"password" binding:"required,min=8"`
+	Email      *string `json:"email,omitempty"`
+	FirstName  string  `json:"firstName" binding:"required"`
+	LastName   string  `json:"lastName" binding:"required"`
+	MiddleName *string `json:"middleName,omitempty"`
+	Position   *string `json:"position,omitempty"`
 }
