@@ -18,6 +18,7 @@ type Config struct {
 	HTTPAddr    string        `env:"HTTP_ADDR" envDefault:":8080"`
 	APIBasePath string        `env:"API_BASE_PATH" envDefault:"/api"`
 	MinIO       MinIOConfig
+	Redis       RedisConfig
 	Logging     LoggingConfig
 }
 
@@ -37,6 +38,12 @@ type LoggingConfig struct {
 	MaxBackups int    `env:"LOG_MAX_BACKUPS" envDefault:"10"`
 	MaxAgeDays int    `env:"LOG_MAX_AGE_DAYS" envDefault:"30"`
 	AlsoStdout bool   `env:"LOG_STDOUT" envDefault:"true"`
+}
+
+type RedisConfig struct {
+	Addr     string `env:"REDIS_ADDR" envDefault:"redis:6379"`
+	Password string `env:"REDIS_PASSWORD"`
+	DB       int    `env:"REDIS_DB" envDefault:"0"`
 }
 
 func Load() Config {

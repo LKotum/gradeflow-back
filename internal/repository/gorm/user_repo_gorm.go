@@ -60,17 +60,6 @@ func (r *UserRepositoryGorm) GetByINS(ctx context.Context, ins string) (*models.
 	return &user, nil
 }
 
-// GetByUsername retrieves user by username (for admin logins).
-func (r *UserRepositoryGorm) GetByUsername(ctx context.Context, username string) (*models.User, error) {
-	var user models.User
-	if err := preloadUser(r.db.WithContext(ctx)).
-		Where("username = ?", username).
-		First(&user).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
 // ListByRole returns users by role.
 func (r *UserRepositoryGorm) ListByRole(ctx context.Context, role models.UserRole) ([]models.User, error) {
 	var users []models.User
@@ -133,4 +122,15 @@ func (r *UserRepositoryGorm) UpsertRefreshToken(ctx context.Context, token *mode
 		}).
 		Create(token).
 		Error
+}
+
+// NextINS generates the next INS value.
+func (r *UserRepositoryGorm) NextINS(ctx context.Context) (string, error) {
+	var ins string
+	if err := r.db.WithContext(ctx).
+		Raw(`SELECT lpad(nextval('ins_sequence')::text, 8, '0')`).
+		Scan(&ins).Error; err != nil {
+		return "", err
+	}
+	return ins, nil
 }

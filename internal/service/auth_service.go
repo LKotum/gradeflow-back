@@ -51,9 +51,9 @@ func (s *AuthService) LoginByINS(ctx context.Context, payload reqdto.INSLoginReq
 	return s.issueTokens(ctx, user)
 }
 
-// LoginAdmin authenticates administrator via username.
+// LoginAdmin authenticates administrator via INS.
 func (s *AuthService) LoginAdmin(ctx context.Context, payload reqdto.AdminLoginRequest) (*respdto.AuthResponse, error) {
-	user, err := s.users.GetByUsername(ctx, payload.Username)
+	user, err := s.users.GetByINS(ctx, payload.INS)
 	if err != nil || user.Role != models.UserRoleAdmin {
 		return nil, ErrInvalidCredentials
 	}
@@ -123,7 +123,6 @@ func (s *AuthService) issueTokens(ctx context.Context, user *models.User) (*resp
 	}
 
 	if err := s.users.UpsertRefreshToken(ctx, &models.RefreshToken{
-		ID:        uuid.New(),
 		UserID:    user.ID,
 		Token:     refreshToken,
 		ExpiresAt: refreshExpires,
@@ -139,7 +138,6 @@ func (s *AuthService) issueTokens(ctx context.Context, user *models.User) (*resp
 			ID:         user.ID.String(),
 			Role:       user.Role,
 			INS:        user.INS,
-			Username:   user.Username,
 			Email:      user.Email,
 			FirstName:  user.FirstName,
 			LastName:   user.LastName,

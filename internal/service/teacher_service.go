@@ -187,20 +187,20 @@ func (s *TeacherService) GradeTable(ctx context.Context, teacherID, subjectID, g
 		gradeLookup[grade.SessionID][grade.StudentID] = grade
 	}
 
-    for _, session := range filteredSessions {
-        for _, profile := range group.Students {
-            user, ok := studentIndex[profile.UserID]
-            if !ok {
-                loaded, err := s.users.GetByID(ctx, profile.UserID)
-                if err != nil {
-                    return nil, fmt.Errorf("load student: %w", err)
-                }
-                user = *loaded
-            }
-            detail := respdto.GradeDetail{
-                SessionID: session.ID.String(),
-                Student: respdto.UserProfile{
-                    ID:         user.ID.String(),
+	for _, session := range filteredSessions {
+		for _, profile := range group.Students {
+			user, ok := studentIndex[profile.UserID]
+			if !ok {
+				loaded, err := s.users.GetByID(ctx, profile.UserID)
+				if err != nil {
+					return nil, fmt.Errorf("load student: %w", err)
+				}
+				user = *loaded
+			}
+			detail := respdto.GradeDetail{
+				SessionID: session.ID.String(),
+				Student: respdto.UserProfile{
+					ID:         user.ID.String(),
 					FirstName:  user.FirstName,
 					LastName:   user.LastName,
 					MiddleName: user.MiddleName,
@@ -244,13 +244,12 @@ func (s *TeacherService) UpsertGrade(ctx context.Context, teacherID uuid.UUID, p
 		return nil, errors.New("cannot grade session owned by another teacher")
 	}
 	grade := &models.Grade{
-		ID:        uuid.New(),
-		SessionID: sessionID,
-		StudentID: studentID,
-		SubjectID: session.SubjectID,
-		TeacherID: teacherID,
-		Value:     payload.Value,
-		Notes:     payload.Notes,
+		SessionID:  sessionID,
+		StudentID:  studentID,
+		SubjectID:  session.SubjectID,
+		TeacherID:  teacherID,
+		Value:      payload.Value,
+		Notes:      payload.Notes,
 		AssessedAt: s.now(),
 	}
 	if err := s.grades.Upsert(ctx, grade); err != nil {

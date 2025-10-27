@@ -23,6 +23,7 @@ import (
 	"gradeflow/internal/migrations"
 	gormrepo "gradeflow/internal/repository/gorm"
 	"gradeflow/internal/service"
+	"gradeflow/pkg/logger"
 )
 
 // App aggregates API dependencies.
@@ -41,9 +42,13 @@ func New(cfg config.Config) (*App, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	if err := migrations.Run(ctx, db); err != nil {
-		return nil, fmt.Errorf("run migrations: %w", err)
-	}
+    adminBootstrap, err := migrations.Run(ctx, db)
+    if err != nil {
+        return nil, fmt.Errorf("run migrations: %w", err)
+    }
+    if adminBootstrap != nil {
+        logger.Info("bootstrap admin credentials", "ins", adminBootstrap.INS, "password", adminBootstrap.Password)
+    }
 
 	minioClient, err := initMinIO(ctx, cfg)
 	if err != nil {

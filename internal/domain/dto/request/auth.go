@@ -1,8 +1,8 @@
 package request
 
-// AdminLoginRequest captures credentials for admin authentication.
+// AdminLoginRequest captures credentials for admin authentication via INS.
 type AdminLoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	INS      string `json:"ins" binding:"required"`
 	Password string `json:"password" binding:"required,min=8"`
 }
 

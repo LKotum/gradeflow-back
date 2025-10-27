@@ -25,31 +25,38 @@ func NewAdminService(users repository.UserRepository) *AdminService {
 
 // CreateDean provisions a dean office staff user.
 func (s *AdminService) CreateDean(ctx context.Context, payload reqdto.CreateDeanRequest) (*respdto.UserProfile, error) {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-	ins := payload.INS
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleDean,
-		INS:          &ins,
-		Email:        payload.Email,
-		FirstName:    payload.FirstName,
-		LastName:     payload.LastName,
-		MiddleName:   payload.MiddleName,
-		PasswordHash: string(hashed),
-	}
+    hashed, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return nil, fmt.Errorf("hash password: %w", err)
+    }
+    ins := payload.INS
+    if ins == "" {
+        generated, err := s.users.NextINS(ctx)
+        if err != nil {
+            return nil, fmt.Errorf("generate INS: %w", err)
+        }
+        ins = generated
+    }
+    user := &models.User{
+        Base: models.Base{ID: uuid.New()},
+        Role:         models.UserRoleDean,
+        INS:          &ins,
+        Email:        payload.Email,
+        FirstName:    payload.FirstName,
+        LastName:     payload.LastName,
+        MiddleName:   payload.MiddleName,
+        PasswordHash: string(hashed),
+    }
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create dean user: %w", err)
 	}
-	if err := s.users.AttachStaffProfile(ctx, &models.StaffProfile{
-		ID:       uuid.New(),
-		UserID:   user.ID,
-		Position: payload.Position,
-	}); err != nil {
-		return nil, fmt.Errorf("create staff profile: %w", err)
-	}
+    if err := s.users.AttachStaffProfile(ctx, &models.StaffProfile{
+        Base:     models.Base{ID: uuid.New()},
+        UserID:   user.ID,
+        Position: payload.Position,
+    }); err != nil {
+        return nil, fmt.Errorf("create staff profile: %w", err)
+    }
 	return &respdto.UserProfile{
 		ID:         user.ID.String(),
 		FirstName:  user.FirstName,

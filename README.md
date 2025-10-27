@@ -19,6 +19,9 @@ The API expects the following configuration (see `.env.example` for local defaul
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO credentials |
 | `MINIO_USE_SSL` | Enable TLS when contacting MinIO (`false` by default) |
 | `MINIO_BUCKET_AVATARS` / `MINIO_BUCKET_REPORTS` | Buckets created on boot |
+| `REDIS_ADDR` | Redis connection address (`redis:6379`) |
+| `REDIS_PASSWORD` | Redis password (optional) |
+| `REDIS_DB` | Redis database number (default `0`) |
 
 Logging options live under `LOG_*` (see `internal/config/config.go` for defaults).
 
@@ -45,6 +48,8 @@ docker compose up --build
 ```
 
 This brings up PostgreSQL, MinIO, the Go API (`http://localhost:8080`), the Vite dev server (`http://localhost:5173`), and Adminer for DB inspection (`http://localhost:8081`). The compose file mounts `../gradleflow-front` into the frontend container.
+
+When the API runs migrations for the first time it bootstraps an administrator account, logging the generated INS and password at startup. Admin authentication now uses the INS alongside the password.
 
 ## Database Migrations
 

@@ -67,7 +67,7 @@ func (c *AuthController) loginByINS(ctx *gin.Context) {
 
 // loginAdmin godoc
 // @Summary      Admin login
-// @Description  Authenticates admin using username/password.
+// @Description  Authenticates admin using INS/password.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
@@ -146,7 +146,6 @@ func (c *AuthController) me(ctx *gin.Context) {
 		ID:         user.ID.String(),
 		Role:       user.Role,
 		INS:        user.INS,
-		Username:   user.Username,
 		Email:      user.Email,
 		FirstName:  user.FirstName,
 		LastName:   user.LastName,

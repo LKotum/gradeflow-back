@@ -19,7 +19,6 @@ type UserSummary struct {
 	ID         string          `json:"id"`
 	Role       models.UserRole `json:"role"`
 	INS        *string         `json:"ins,omitempty"`
-	Username   *string         `json:"username,omitempty"`
 	Email      *string         `json:"email,omitempty"`
 	FirstName  string          `json:"firstName"`
 	LastName   string          `json:"lastName"`

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,18 +19,18 @@ var errNotFound = errors.New("not found")
 type fakeUserRepo struct {
 	users         map[uuid.UUID]*models.User
 	byINS         map[string]uuid.UUID
-	byUsername    map[string]uuid.UUID
 	profiles      map[uuid.UUID]*models.StudentProfile
 	refreshTokens map[uuid.UUID]*models.RefreshToken
+    nextINS      int
 }
 
 func newFakeUserRepo() *fakeUserRepo {
 	return &fakeUserRepo{
 		users:         make(map[uuid.UUID]*models.User),
 		byINS:         make(map[string]uuid.UUID),
-		byUsername:    make(map[string]uuid.UUID),
 		profiles:      make(map[uuid.UUID]*models.StudentProfile),
 		refreshTokens: make(map[uuid.UUID]*models.RefreshToken),
+        nextINS:      1,
 	}
 }
 
@@ -37,9 +38,6 @@ func (f *fakeUserRepo) Create(_ context.Context, user *models.User) error {
 	f.users[user.ID] = user
 	if user.INS != nil {
 		f.byINS[*user.INS] = user.ID
-	}
-	if user.Username != nil {
-		f.byUsername[*user.Username] = user.ID
 	}
 	return nil
 }
@@ -57,14 +55,6 @@ func (f *fakeUserRepo) GetByID(_ context.Context, id uuid.UUID) (*models.User, e
 
 func (f *fakeUserRepo) GetByINS(_ context.Context, ins string) (*models.User, error) {
 	id, ok := f.byINS[ins]
-	if !ok {
-		return nil, errNotFound
-	}
-	return f.GetByID(context.Background(), id)
-}
-
-func (f *fakeUserRepo) GetByUsername(_ context.Context, username string) (*models.User, error) {
-	id, ok := f.byUsername[username]
 	if !ok {
 		return nil, errNotFound
 	}
@@ -97,20 +87,26 @@ func (f *fakeUserRepo) UpsertRefreshToken(_ context.Context, token *models.Refre
 	return nil
 }
 
+func (f *fakeUserRepo) NextINS(context.Context) (string, error) {
+    value := f.nextINS
+    f.nextINS++
+    return fmt.Sprintf("%08d", value), nil
+}
+
 func TestAuthServiceLoginByINS(t *testing.T) {
 	repo := newFakeUserRepo()
 	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-	ins := "INS-001"
+    ins := "00000001"
 	password := "Password123"
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleTeacher,
-		INS:          &ins,
-		PasswordHash: string(hash),
-		FirstName:    "Tom",
-		LastName:     "Teacher",
-	}
+    user := &models.User{
+        Base: models.Base{ID: uuid.New()},
+        Role:         models.UserRoleTeacher,
+        INS:          &ins,
+        PasswordHash: string(hash),
+        FirstName:    "Tom",
+        LastName:     "Teacher",
+    }
 	if err := repo.Create(context.Background(), user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -124,38 +120,38 @@ func TestAuthServiceLoginByINS(t *testing.T) {
 }
 
 func TestAuthServiceLoginAdminInvalidPassword(t *testing.T) {
-	repo := newFakeUserRepo()
-	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-	username := "admin"
-	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpass"), bcrypt.DefaultCost)
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleAdmin,
-		Username:     &username,
-		PasswordHash: string(hash),
-		FirstName:    "Alice",
-		LastName:     "Admin",
-	}
-	repo.Create(context.Background(), user)
-	_, err := svc.LoginAdmin(context.Background(), reqdto.AdminLoginRequest{Username: username, Password: "wrong"})
-	if !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatalf("expected ErrInvalidCredentials, got %v", err)
-	}
+    repo := newFakeUserRepo()
+    svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
+    ins := "00000010"
+    hash, _ := bcrypt.GenerateFromPassword([]byte("correctpass"), bcrypt.DefaultCost)
+    user := &models.User{
+        Base:         models.Base{ID: uuid.New()},
+        Role:         models.UserRoleAdmin,
+        INS:          &ins,
+        PasswordHash: string(hash),
+        FirstName:    "Alice",
+        LastName:     "Admin",
+    }
+    repo.Create(context.Background(), user)
+    _, err := svc.LoginAdmin(context.Background(), reqdto.AdminLoginRequest{INS: ins, Password: "wrong"})
+    if !errors.Is(err, ErrInvalidCredentials) {
+        t.Fatalf("expected ErrInvalidCredentials, got %v", err)
+    }
 }
 
 func TestAuthServiceRefresh(t *testing.T) {
 	repo := newFakeUserRepo()
 	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-	ins := "INS-002"
+    ins := "00000002"
 	hash, _ := bcrypt.GenerateFromPassword([]byte("refreshPass"), bcrypt.DefaultCost)
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleStudent,
-		INS:          &ins,
-		PasswordHash: string(hash),
-		FirstName:    "Sam",
-		LastName:     "Student",
-	}
+    user := &models.User{
+        Base: models.Base{ID: uuid.New()},
+        Role:         models.UserRoleStudent,
+        INS:          &ins,
+        PasswordHash: string(hash),
+        FirstName:    "Sam",
+        LastName:     "Student",
+    }
 	repo.Create(context.Background(), user)
 	loginResp, err := svc.LoginByINS(context.Background(), reqdto.INSLoginRequest{INS: ins, Password: "refreshPass"})
 	if err != nil {

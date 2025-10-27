@@ -36,11 +36,11 @@ func NewDeanService(users repository.UserRepository, groups repository.GroupRepo
 
 // CreateGroup provisions a new student group.
 func (s *DeanService) CreateGroup(ctx context.Context, payload reqdto.CreateGroupRequest) (*respdto.GroupSummary, error) {
-	group := &models.Group{
-		ID:          uuid.New(),
-		Name:        payload.Name,
-		Description: payload.Description,
-	}
+    group := &models.Group{
+        Base:        models.Base{ID: uuid.New()},
+        Name:        payload.Name,
+        Description: payload.Description,
+    }
 	if err := s.groups.Create(ctx, group); err != nil {
 		return nil, fmt.Errorf("create group: %w", err)
 	}
@@ -62,12 +62,12 @@ func (s *DeanService) ListGroups(ctx context.Context) ([]respdto.GroupSummary, e
 
 // CreateSubject registers a new subject.
 func (s *DeanService) CreateSubject(ctx context.Context, payload reqdto.CreateSubjectRequest) (*respdto.SubjectSummary, error) {
-	subject := &models.Subject{
-		ID:          uuid.New(),
-		Code:        payload.Code,
-		Name:        payload.Name,
-		Description: payload.Description,
-	}
+    subject := &models.Subject{
+        Base:        models.Base{ID: uuid.New()},
+        Code:        payload.Code,
+        Name:        payload.Name,
+        Description: payload.Description,
+    }
 	if err := s.subjects.Create(ctx, subject); err != nil {
 		return nil, fmt.Errorf("create subject: %w", err)
 	}
@@ -89,32 +89,39 @@ func (s *DeanService) ListSubjects(ctx context.Context) ([]respdto.SubjectSummar
 
 // CreateTeacher provisions teacher account.
 func (s *DeanService) CreateTeacher(ctx context.Context, payload reqdto.CreateTeacherRequest) (*respdto.UserProfile, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-	ins := payload.INS
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleTeacher,
-		INS:          &ins,
-		Email:        payload.Email,
-		FirstName:    payload.FirstName,
-		LastName:     payload.LastName,
-		MiddleName:   payload.MiddleName,
-		PasswordHash: string(passwordHash),
-	}
+    passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return nil, fmt.Errorf("hash password: %w", err)
+    }
+    ins := payload.INS
+    if ins == "" {
+        generated, err := s.users.NextINS(ctx)
+        if err != nil {
+            return nil, fmt.Errorf("generate INS: %w", err)
+        }
+        ins = generated
+    }
+    user := &models.User{
+        Base:         models.Base{ID: uuid.New()},
+        Role:         models.UserRoleTeacher,
+        INS:          &ins,
+        Email:        payload.Email,
+        FirstName:    payload.FirstName,
+        LastName:     payload.LastName,
+        MiddleName:   payload.MiddleName,
+        PasswordHash: string(passwordHash),
+    }
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create teacher user: %w", err)
 	}
-	if err := s.users.AttachTeacherProfile(ctx, &models.TeacherProfile{
-		ID:      uuid.New(),
-		UserID:  user.ID,
-		Title:   payload.Title,
-		Bio:     payload.Bio,
-	}); err != nil {
-		return nil, fmt.Errorf("create teacher profile: %w", err)
-	}
+    if err := s.users.AttachTeacherProfile(ctx, &models.TeacherProfile{
+        Base:    models.Base{ID: uuid.New()},
+        UserID:  user.ID,
+        Title:   payload.Title,
+        Bio:     payload.Bio,
+    }); err != nil {
+        return nil, fmt.Errorf("create teacher profile: %w", err)
+    }
 	return &respdto.UserProfile{
 		ID:         user.ID.String(),
 		FirstName:  user.FirstName,
@@ -150,29 +157,36 @@ func (s *DeanService) ListTeachers(ctx context.Context) ([]respdto.UserProfile, 
 
 // CreateStudent provisions student account.
 func (s *DeanService) CreateStudent(ctx context.Context, payload reqdto.CreateStudentRequest) (*respdto.UserProfile, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-	ins := payload.INS
-	user := &models.User{
-		ID:           uuid.New(),
-		Role:         models.UserRoleStudent,
-		INS:          &ins,
-		Email:        payload.Email,
-		FirstName:    payload.FirstName,
-		LastName:     payload.LastName,
-		MiddleName:   payload.MiddleName,
-		PasswordHash: string(passwordHash),
-	}
+    passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return nil, fmt.Errorf("hash password: %w", err)
+    }
+    ins := payload.INS
+    if ins == "" {
+        generated, err := s.users.NextINS(ctx)
+        if err != nil {
+            return nil, fmt.Errorf("generate INS: %w", err)
+        }
+        ins = generated
+    }
+    user := &models.User{
+        Base:         models.Base{ID: uuid.New()},
+        Role:         models.UserRoleStudent,
+        INS:          &ins,
+        Email:        payload.Email,
+        FirstName:    payload.FirstName,
+        LastName:     payload.LastName,
+        MiddleName:   payload.MiddleName,
+        PasswordHash: string(passwordHash),
+    }
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create student user: %w", err)
 	}
-	profile := &models.StudentProfile{
-		ID:     uuid.New(),
-		UserID: user.ID,
-		Index:  payload.Index,
-	}
+    profile := &models.StudentProfile{
+        Base:   models.Base{ID: uuid.New()},
+        UserID: user.ID,
+        Index:  payload.Index,
+    }
 	if payload.GroupID != nil {
 		gid, err := uuid.Parse(*payload.GroupID)
 		if err != nil {
@@ -222,11 +236,11 @@ func (s *DeanService) AssignTeacher(ctx context.Context, subjectID uuid.UUID, pa
 	if err != nil {
 		return fmt.Errorf("parse teacher id: %w", err)
 	}
-	assignment := &models.TeachingAssignment{
-		ID:        uuid.New(),
-		SubjectID: subjectID,
-		TeacherID: teacherID,
-	}
+    assignment := &models.TeachingAssignment{
+        Base:      models.Base{ID: uuid.New()},
+        SubjectID: subjectID,
+        TeacherID: teacherID,
+    }
 	return s.subjects.AssignTeacher(ctx, assignment)
 }
 
@@ -236,11 +250,11 @@ func (s *DeanService) AttachGroup(ctx context.Context, subjectID uuid.UUID, payl
 	if err != nil {
 		return fmt.Errorf("parse group id: %w", err)
 	}
-	link := &models.SubjectGroup{
-		ID:        uuid.New(),
-		SubjectID: subjectID,
-		GroupID:   groupID,
-	}
+    link := &models.SubjectGroup{
+        Base:      models.Base{ID: uuid.New()},
+        SubjectID: subjectID,
+        GroupID:   groupID,
+    }
 	return s.subjects.AttachGroup(ctx, link)
 }
 
@@ -296,15 +310,15 @@ func (s *DeanService) ScheduleSession(ctx context.Context, payload reqdto.Schedu
 	if !valid {
 		return nil, errors.New("teacher not assigned to subject")
 	}
-	session := &models.ClassSession{
-		ID:        uuid.New(),
-		SubjectID: subjectID,
-		GroupID:   groupID,
-		TeacherID: teacherID,
-		StartsAt:  payload.StartsAt,
-		EndsAt:    payload.EndsAt,
-		Topic:     payload.Topic,
-	}
+    session := &models.ClassSession{
+        Base:      models.Base{ID: uuid.New()},
+        SubjectID: subjectID,
+        GroupID:   groupID,
+        TeacherID: teacherID,
+        StartsAt:  payload.StartsAt,
+        EndsAt:    payload.EndsAt,
+        Topic:     payload.Topic,
+    }
 	if err := s.sessions.Create(ctx, session); err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
