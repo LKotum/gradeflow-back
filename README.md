@@ -25,16 +25,16 @@ Logging options live under `LOG_*` (see `internal/config/config.go` for defaults
 ## Running Locally
 
 ```bash
-# Backend
+# Backend (from gradeflow/)
 go run ./cmd/api
 
-# Frontend (in another terminal)
-cd frontend
+# Frontend (from gradeflow-front/)
+cd ../gradleflow-front
 npm install
 npm run dev
 ```
 
-Swagger UI will be available at `http://localhost:8080/swagger/index.html` with API routes mounted under `/api`.
+Swagger UI is exposed at `http://localhost:8080/swagger/index.html` with API routes under `/api`.
 
 ## Docker Compose
 
@@ -44,17 +44,17 @@ A convenience stack is provided:
 docker compose up --build
 ```
 
-This starts PostgreSQL, MinIO, the Go API (`http://localhost:8080`), the Vite dev server (`http://localhost:5173`), and Adminer for DB inspection (`http://localhost:8081`).
+This brings up PostgreSQL, MinIO, the Go API (`http://localhost:8080`), the Vite dev server (`http://localhost:5173`), and Adminer for DB inspection (`http://localhost:8081`). The compose file mounts `../gradleflow-front` into the frontend container.
 
 ## Database Migrations
 
-Initial DDL lives in `internal/migrations/0001_init.up.sql`. For development you can rely on the Postgres init hook from Docker Compose. For manual runs:
+Migrations are managed via gormigrate (`internal/migrations/migrations.go`). They run automatically on boot. To execute manually:
 
 ```bash
-migrate -path internal/migrations -database "$PG_URL" up
+go test ./internal/migrations -run TestPlaceholder # triggers gormigrate wiring
 ```
 
-Rollback support is available through the paired `.down.sql` file.
+or import the package and call `migrations.Run(ctx, db)` from your tooling.
 
 ## Swagger Docs
 
@@ -66,20 +66,15 @@ swag init -g cmd/api/main.go -o pkg/swagger
 
 ## Testing
 
-Unit tests cover service authentication flows and controller integration. Run them via:
-
-```bash
-go test ./...
-```
+Unit tests cover authentication and controller plumbing. Run them with `go test ./...` when a Go toolchain is available.
 
 ## Frontend
 
-The React scaffold under `frontend/` provides Chakra UI layouts for:
+The React application lives in `../gradleflow-front/` and ships Chakra UI based workspaces for each role:
 
-- Login and token handling
-- Dashboard with role-aware placeholder widgets
-- Student grades view
-- Teacher grade editor skeleton
-- Dean panel for user/subject/group creation
+- Admin dashboard to create dean staff
+- Dean panel for managing subjects, groups, teachers, students and scheduling
+- Teacher dashboard + gradebook editor consuming `/teacher/*` APIs
+- Student dashboard and per-subject grade tracking
 
-Update `frontend/.env` with `VITE_API_BASE_URL` if you consume a different API origin.
+Update `../gradleflow-front/.env` with `VITE_API_BASE_URL` when pointing at a non-default API origin.

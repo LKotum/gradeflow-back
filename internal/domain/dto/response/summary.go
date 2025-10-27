@@ -66,6 +66,7 @@ type GradeTableResponse struct {
 	Subject SubjectSummary `json:"subject"`
 	Group   GroupSummary   `json:"group"`
 	Sessions []SessionSummary `json:"sessions"`
+	Students []UserProfile    `json:"students"`
 	Grades   []GradeDetail    `json:"grades"`
 }
 

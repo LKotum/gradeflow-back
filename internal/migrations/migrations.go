@@ -61,9 +61,9 @@ func Run(ctx context.Context, db *gorm.DB) error {
 			},
 		},
 	}
-	migrator := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
+	migrator := gormigrate.New(db.WithContext(ctx), gormigrate.DefaultOptions, migrations)
 	migrator.InitSchema(func(tx *gorm.DB) error {
 		return nil
 	})
-	return migrator.WithContext(ctx).Migrate()
+	return migrator.Migrate()
 }

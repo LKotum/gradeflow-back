@@ -134,7 +134,6 @@ func (s *TeacherService) GradeTable(ctx context.Context, teacherID, subjectID, g
 	if err != nil {
 		return nil, fmt.Errorf("list grades: %w", err)
 	}
-	studentCache := make(map[uuid.UUID]*models.User)
 	resp := &respdto.GradeTableResponse{
 		Subject: respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description},
 		Group:   respdto.GroupSummary{ID: group.ID.String(), Name: group.Name, Description: group.Description},
@@ -151,39 +150,78 @@ func (s *TeacherService) GradeTable(ctx context.Context, teacherID, subjectID, g
 			GroupID:   s.GroupID.String(),
 		})
 	}
+
+	studentProfiles := make([]respdto.UserProfile, 0, len(group.Students))
+	studentIndex := make(map[uuid.UUID]models.User, len(group.Students))
+	for _, profile := range group.Students {
+		user := profile.User
+		if user.ID == uuid.Nil {
+			loaded, err := s.users.GetByID(ctx, profile.UserID)
+			if err != nil {
+				return nil, fmt.Errorf("load student: %w", err)
+			}
+			user = *loaded
+		}
+		studentIndex[user.ID] = user
+		studentProfiles = append(studentProfiles, respdto.UserProfile{
+			ID:         user.ID.String(),
+			FirstName:  user.FirstName,
+			LastName:   user.LastName,
+			MiddleName: user.MiddleName,
+			Email:      user.Email,
+			INS:        user.INS,
+			AvatarURL:  user.AvatarURL,
+			Role:       string(user.Role),
+		})
+	}
+	resp.Students = studentProfiles
+
+	gradeLookup := make(map[uuid.UUID]map[uuid.UUID]models.Grade)
 	for _, grade := range grades {
 		if grade.TeacherID != teacherID {
 			continue
 		}
-		student, ok := studentCache[grade.StudentID]
-		if !ok {
-			stu, err := s.users.GetByID(ctx, grade.StudentID)
-			if err != nil {
-				return nil, fmt.Errorf("load student: %w", err)
-			}
-			studentCache[grade.StudentID] = stu
-			student = stu
+		if _, ok := gradeLookup[grade.SessionID]; !ok {
+			gradeLookup[grade.SessionID] = make(map[uuid.UUID]models.Grade)
 		}
-		assessedAt := grade.AssessedAt
-		value := grade.Value
-		notes := grade.Notes
-		resp.Grades = append(resp.Grades, respdto.GradeDetail{
-			GradeID:   stringPtr(grade.ID.String()),
-			SessionID: grade.SessionID.String(),
-			Student: respdto.UserProfile{
-				ID:         student.ID.String(),
-				FirstName:  student.FirstName,
-				LastName:   student.LastName,
-				MiddleName: student.MiddleName,
-				Email:      student.Email,
-				INS:        student.INS,
-				AvatarURL:  student.AvatarURL,
-				Role:       string(student.Role),
-			},
-			Value:      &value,
-			Notes:      notes,
-			AssessedAt: &assessedAt,
-		})
+		gradeLookup[grade.SessionID][grade.StudentID] = grade
+	}
+
+    for _, session := range filteredSessions {
+        for _, profile := range group.Students {
+            user, ok := studentIndex[profile.UserID]
+            if !ok {
+                loaded, err := s.users.GetByID(ctx, profile.UserID)
+                if err != nil {
+                    return nil, fmt.Errorf("load student: %w", err)
+                }
+                user = *loaded
+            }
+            detail := respdto.GradeDetail{
+                SessionID: session.ID.String(),
+                Student: respdto.UserProfile{
+                    ID:         user.ID.String(),
+					FirstName:  user.FirstName,
+					LastName:   user.LastName,
+					MiddleName: user.MiddleName,
+					Email:      user.Email,
+					INS:        user.INS,
+					AvatarURL:  user.AvatarURL,
+					Role:       string(user.Role),
+				},
+			}
+			if byStudent, ok := gradeLookup[session.ID]; ok {
+				if grade, ok := byStudent[user.ID]; ok {
+					value := grade.Value
+					detail.GradeID = stringPtr(grade.ID.String())
+					detail.Value = &value
+					detail.Notes = grade.Notes
+					assessedAt := grade.AssessedAt
+					detail.AssessedAt = &assessedAt
+				}
+			}
+			resp.Grades = append(resp.Grades, detail)
+		}
 	}
 	return resp, nil
 }
