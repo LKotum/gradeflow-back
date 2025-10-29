@@ -15,195 +15,37 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/academic-sessions": {
+        "/admin/deans": {
             "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "academic-sessions"
-                ],
-                "summary": "List academic sessions",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AcademicSessionList"
-                        }
+                "security": [
+                    {
+                        "BearerAuth": []
                     }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "academic-sessions"
+                    "Admin"
                 ],
-                "summary": "Create academic session",
+                "summary": "List dean staff",
                 "parameters": [
-                    {
-                        "description": "session",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateAcademicSession"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.AcademicSession"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/academic-sessions/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "academic-sessions"
-                ],
-                "summary": "Get academic session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "session id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AcademicSession"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "academic-sessions"
-                ],
-                "summary": "Update academic session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "session id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "session",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateAcademicSession"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AcademicSession"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "academic-sessions"
-                ],
-                "summary": "Delete academic session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "session id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/admins": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admins"
-                ],
-                "summary": "List admins",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "search by name",
-                        "name": "q",
-                        "in": "query"
-                    },
                     {
                         "type": "integer",
-                        "description": "limit",
+                        "description": "Limit",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "offset",
+                        "description": "Offset",
                         "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
                         "in": "query"
                     }
                 ],
@@ -211,613 +53,23 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.AdminList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admins"
-                ],
-                "summary": "Create admin",
-                "parameters": [
-                    {
-                        "description": "admin",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateAdmin"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Admin"
+                            "$ref": "#/definitions/response.PaginatedUserProfiles"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/admins/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admins"
-                ],
-                "summary": "Get admin",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "admin id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Admin"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admins"
-                ],
-                "summary": "Update admin",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "admin id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "admin",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateAdmin"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Admin"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admins"
-                ],
-                "summary": "Delete admin",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "admin id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/assessments": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments"
-                ],
-                "summary": "List assessments",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments"
-                ],
-                "summary": "Create assessment",
-                "parameters": [
-                    {
-                        "description": "assessment",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateAssessment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Assessment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/assessments/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments"
-                ],
-                "summary": "Get assessment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "assessment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Assessment"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments"
-                ],
-                "summary": "Update assessment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "assessment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "assessment",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateAssessment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Assessment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments"
-                ],
-                "summary": "Delete assessment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "assessment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/assessments/{id}/grades": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments",
-                    "grades"
-                ],
-                "summary": "List grades for assessment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "assessment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGradeList"
-                        }
-                    }
-                }
-            }
-        },
-        "/assessments/{id}/grades/bulk": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "assessments",
-                    "grades"
-                ],
-                "summary": "Bulk upsert grades for assessment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "assessment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "grades",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/request.GradeItem"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGradeList"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/attendance": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attendance"
-                ],
-                "summary": "List attendance",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AttendanceList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attendance"
-                ],
-                "summary": "Create attendance",
-                "parameters": [
-                    {
-                        "description": "attendance",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateAttendance"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Attendance"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/attendance/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attendance"
-                ],
-                "summary": "Get attendance",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "attendance id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Attendance"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attendance"
-                ],
-                "summary": "Update attendance",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "attendance id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "attendance",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateAttendance"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Attendance"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attendance"
-                ],
-                "summary": "Delete attendance",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "attendance id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/login": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login with email/password (+TOTP if enabled)",
-                "parameters": [
-                    {
-                        "description": "login",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.Login"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.TokenPair"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
-            }
-        },
-        "/auth/logout": {
+            },
             "post": {
                 "security": [
                     {
@@ -831,17 +83,99 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Admin"
                 ],
-                "summary": "Logout (revoke refresh token)",
+                "summary": "Create dean staff",
                 "parameters": [
                     {
-                        "description": "logout",
-                        "name": "input",
+                        "description": "Dean payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.Logout"
+                            "$ref": "#/definitions/request.CreateDeanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/deans/{deanId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Soft delete dean",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dean ID",
+                        "name": "deanId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update dean profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dean ID",
+                        "name": "deanId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateDeanRequest"
                         }
                     }
                 ],
@@ -849,13 +183,559 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.OK"
+                            "$ref": "#/definitions/response.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/deans/{deanId}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Restore dean",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dean ID",
+                        "name": "deanId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/groups/deleted": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List deleted groups",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedGroupSummaries"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/groups/{groupId}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Restore group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subjects/deleted": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List deleted subjects",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedSubjectSummaries"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/subjects/{subjectId}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Restore subject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject ID",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List users by role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role (student|teacher|dean)",
+                        "name": "role",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedUserProfiles"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/deleted": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List deleted users by role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role (student|teacher|dean)",
+                        "name": "role",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedUserProfiles"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{userId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Soft delete user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{userId}/password": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reset user password",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New password",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{userId}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Restore user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login/admin": {
+            "post": {
+                "description": "Authenticates admin using INS/password.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Admin login",
+                "parameters": [
+                    {
+                        "description": "Credentials",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AdminLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login/ins": {
+            "post": {
+                "description": "Authenticates student/teacher/dean using individual number.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login by INS",
+                "parameters": [
+                    {
+                        "description": "Credentials",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.INSLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
@@ -872,20 +752,64 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Auth"
                 ],
-                "summary": "Get current user",
+                "summary": "Current user",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.User"
+                            "$ref": "#/definitions/response.UserSummary"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Change password",
+                "parameters": [
+                    {
+                        "description": "Password change payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
@@ -893,6 +817,7 @@ const docTemplate = `{
         },
         "/auth/refresh": {
             "post": {
+                "description": "Exchanges refresh token for a new access token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -900,17 +825,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Auth"
                 ],
                 "summary": "Refresh access token",
                 "parameters": [
                     {
-                        "description": "refresh",
-                        "name": "input",
+                        "description": "Refresh token",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.Refresh"
+                            "$ref": "#/definitions/request.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -918,1450 +843,85 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.TokenPair"
+                            "$ref": "#/definitions/response.AuthResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/auth/register": {
-            "post": {
-                "description": "Creates a new user and sends a verification email",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register new user",
-                "parameters": [
-                    {
-                        "description": "registration",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.Register"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.CreatedID"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/request-reset": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Request password reset",
-                "parameters": [
-                    {
-                        "description": "email",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.RequestReset"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.OK"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/reset": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Reset password using token",
-                "parameters": [
-                    {
-                        "description": "reset",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.ResetPassword"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.OK"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/verify": {
+        "/dean/groups": {
             "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Verify email address",
-                "parameters": [
+                "security": [
                     {
-                        "type": "string",
-                        "description": "verification token",
-                        "name": "token",
-                        "in": "query",
-                        "required": true
+                        "BearerAuth": []
                     }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.OK"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/courses": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "courses"
-                ],
-                "summary": "List courses",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.CourseList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "courses"
-                ],
-                "summary": "Create course",
-                "parameters": [
-                    {
-                        "description": "course",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateCourse"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Course"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/courses/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "courses"
-                ],
-                "summary": "Get course",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "course id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Course"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "courses"
-                ],
-                "summary": "Update course",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "course id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "course",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateCourse"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Course"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "courses"
-                ],
-                "summary": "Delete course",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "course id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/credits": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "credits"
-                ],
-                "summary": "List credits",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "filter by course",
-                        "name": "courseId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "filter by student",
-                        "name": "studentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "filter by type",
-                        "name": "type",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.CreditList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "credits"
-                ],
-                "summary": "Create credit/offset",
-                "parameters": [
-                    {
-                        "description": "credit",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateCredit"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Credit"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/credits/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "credits"
-                ],
-                "summary": "Get credit",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Credit"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "credits"
-                ],
-                "summary": "Update credit",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "credit",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateCredit"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Credit"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "credits"
-                ],
-                "summary": "Delete credit",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/departments": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "List departments",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.DepartmentList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Create department",
-                "parameters": [
-                    {
-                        "description": "department",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateDepartment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Department"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/departments/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Get department",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "department id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Department"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Update department",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "department id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "department",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateDepartment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Department"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Delete department",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "department id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/enrollments": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enrollments"
-                ],
-                "summary": "List enrollments",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.EnrollmentList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enrollments"
-                ],
-                "summary": "Create enrollment",
-                "parameters": [
-                    {
-                        "description": "enrollment",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateEnrollment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Enrollment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/enrollments/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enrollments"
-                ],
-                "summary": "Get enrollment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "enrollment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Enrollment"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enrollments"
-                ],
-                "summary": "Update enrollment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "enrollment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "enrollment",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateEnrollment"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Enrollment"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "enrollments"
-                ],
-                "summary": "Delete enrollment",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "enrollment id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/exam-attempts": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-attempts"
-                ],
-                "summary": "List exam attempts",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "filter by assessment",
-                        "name": "assessmentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "filter by student",
-                        "name": "studentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamAttemptList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-attempts"
-                ],
-                "summary": "Create exam attempt",
-                "parameters": [
-                    {
-                        "description": "attempt",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateExamAttempt"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamAttempt"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/exam-attempts/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-attempts"
-                ],
-                "summary": "Get exam attempt",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamAttempt"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-attempts"
-                ],
-                "summary": "Update exam attempt",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "attempt",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateExamAttempt"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamAttempt"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-attempts"
-                ],
-                "summary": "Delete exam attempt",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/exam-sessions": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-sessions"
-                ],
-                "summary": "List exam sessions",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "filter by academic session",
-                        "name": "academicSessionId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by name",
-                        "name": "q",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamSessionList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-sessions"
-                ],
-                "summary": "Create exam session",
-                "parameters": [
-                    {
-                        "description": "exam session",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateExamSession"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamSession"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/exam-sessions/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-sessions"
-                ],
-                "summary": "Get exam session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamSession"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-sessions"
-                ],
-                "summary": "Update exam session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "exam session",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateExamSession"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ExamSession"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "exam-sessions"
-                ],
-                "summary": "Delete exam session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/grades": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "grades"
-                ],
-                "summary": "List grades",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGradeList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "grades"
-                ],
-                "summary": "Create grade",
-                "parameters": [
-                    {
-                        "description": "grade",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateAssessmentGrade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGrade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/grades/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "grades"
-                ],
-                "summary": "Get grade",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "grade id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGrade"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "grades"
-                ],
-                "summary": "Update grade",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "grade id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "grade",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateAssessmentGrade"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AssessmentGrade"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "grades"
-                ],
-                "summary": "Delete grade",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "grade id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/groups": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "groups"
+                    "Dean"
                 ],
                 "summary": "List groups",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.GroupList"
+                            "$ref": "#/definitions/response.PaginatedGroupSummaries"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -2369,17 +929,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "groups"
+                    "Dean"
                 ],
                 "summary": "Create group",
                 "parameters": [
                     {
-                        "description": "group",
-                        "name": "input",
+                        "description": "Group payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreateGroup"
+                            "$ref": "#/definitions/request.CreateGroupRequest"
                         }
                     }
                 ],
@@ -2387,40 +947,86 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/response.Group"
+                            "$ref": "#/definitions/response.GroupSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/groups/{id}": {
+        "/dean/groups/ranking": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups"
+                    "Dean"
                 ],
-                "summary": "Get group",
+                "summary": "Group ranking by average grade",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.GroupRankingResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/dean/groups/{groupId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Soft delete group",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "group id",
-                        "name": "id",
+                        "description": "Group ID",
+                        "name": "groupId",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Group"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             },
-            "put": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -2428,24 +1034,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "groups"
+                    "Dean"
                 ],
                 "summary": "Update group",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "group id",
-                        "name": "id",
+                        "description": "Group ID",
+                        "name": "groupId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "group",
-                        "name": "input",
+                        "description": "Update payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.UpdateGroup"
+                            "$ref": "#/definitions/request.UpdateGroupRequest"
                         }
                     }
                 ],
@@ -2453,567 +1059,149 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Group"
+                            "$ref": "#/definitions/response.GroupSummary"
                         }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "groups"
-                ],
-                "summary": "Delete group",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "group id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/lessons": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lessons"
-                ],
-                "summary": "List lessons",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.LessonList"
-                        }
-                    }
-                }
-            },
+        "/dean/groups/{groupId}/students": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "lessons"
+                    "Dean"
                 ],
-                "summary": "Create lesson",
+                "summary": "Назначить студентов в группу",
                 "parameters": [
                     {
-                        "description": "lesson",
-                        "name": "input",
+                        "type": "string",
+                        "description": "ID группы",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Список студентов",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreateLesson"
+                            "$ref": "#/definitions/request.AssignStudentToGroupRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Lesson"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/lessons/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lessons"
-                ],
-                "summary": "Get lesson",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "lesson id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Lesson"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lessons"
-                ],
-                "summary": "Update lesson",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "lesson id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "lesson",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateLesson"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Lesson"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
+        "/dean/groups/{groupId}/students/{studentId}": {
             "delete": {
-                "produces": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
                 "tags": [
-                    "lessons"
+                    "Dean"
                 ],
-                "summary": "Delete lesson",
+                "summary": "Открепить студента от группы",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "lesson id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/lessons/{id}/attendance": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lessons",
-                    "attendance"
-                ],
-                "summary": "List attendance for lesson",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "lesson id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AttendanceList"
-                        }
-                    }
-                }
-            }
-        },
-        "/lessons/{id}/attendance/bulk": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "lessons",
-                    "attendance"
-                ],
-                "summary": "Bulk upsert attendance for lesson",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "lesson id",
-                        "name": "id",
+                        "description": "ID группы",
+                        "name": "groupId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "attendance entries",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/request.AttendanceBulkItem"
-                            }
-                        }
+                        "type": "string",
+                        "description": "ID студента",
+                        "name": "studentId",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.AttendanceList"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/practices": {
+        "/dean/schedule": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "practices"
+                    "Dean"
                 ],
-                "summary": "List practices",
+                "summary": "Расписание занятий",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "filter by department",
-                        "name": "departmentId",
+                        "description": "ID предмета",
+                        "name": "subjectId",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "filter by program",
-                        "name": "programId",
+                        "description": "ID группы",
+                        "name": "groupId",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "start date \u003e= (RFC3339)",
+                        "description": "ID преподавателя",
+                        "name": "teacherId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Дата с",
                         "name": "from",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "end date \u003c= (RFC3339)",
+                        "format": "date",
+                        "description": "Дата по",
                         "name": "to",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by title",
-                        "name": "q",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.PracticeList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Create practice",
-                "parameters": [
-                    {
-                        "description": "practice",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreatePractice"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Practice"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/practices/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Get practice",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "practice id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Practice"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Update practice",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "practice id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "practice",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdatePractice"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Practice"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Delete practice",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "practice id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/practices/{id}/enrollments": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "List practice enrollments",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "practice id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "filter by student",
-                        "name": "studentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.PracticeEnrollmentList"
-                        }
-                    }
-                }
-            }
-        },
-        "/practices/{id}/enrollments/bulk": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "practices"
-                ],
-                "summary": "Bulk upsert enrollments for practice",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "practice id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "enrollments",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/request.PracticeEnrollmentItem"
-                            }
-                        }
                     }
                 ],
                 "responses": {
@@ -3022,38 +1210,32 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/response.PracticeEnrollment"
+                                "$ref": "#/definitions/response.ScheduleEntry"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/programs": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "programs"
-                ],
-                "summary": "List programs",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.ProgramList"
-                        }
-                    }
-                }
-            },
+        "/dean/sessions": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3061,17 +1243,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "programs"
+                    "Dean"
                 ],
-                "summary": "Create program",
+                "summary": "Создать занятие",
                 "parameters": [
                     {
-                        "description": "program",
-                        "name": "input",
+                        "description": "Пара для предмета",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreateProgram"
+                            "$ref": "#/definitions/request.ScheduleSessionRequest"
                         }
                     }
                 ],
@@ -3079,315 +1261,82 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/response.Program"
-                        }
-                    }
-                }
-            }
-        },
-        "/programs/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "programs"
-                ],
-                "summary": "Get program",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "program id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Program"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "programs"
-                ],
-                "summary": "Update program",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "program id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "program",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateProgram"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Program"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "programs"
-                ],
-                "summary": "Delete program",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "program id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/response.SessionSummary"
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/staff": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staff"
-                ],
-                "summary": "List staff",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "filter by department",
-                        "name": "departmentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by name",
-                        "name": "q",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.StaffList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staff"
-                ],
-                "summary": "Create staff member",
-                "parameters": [
-                    {
-                        "description": "staff",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateStaff"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Staff"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/staff/{id}": {
+        "/dean/students": {
             "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staff"
-                ],
-                "summary": "Get staff member",
-                "parameters": [
+                "security": [
                     {
-                        "type": "string",
-                        "description": "staff id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
+                        "BearerAuth": []
                     }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Staff"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "staff"
-                ],
-                "summary": "Update staff member",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "staff id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "staff",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateStaff"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Staff"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Error"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staff"
-                ],
-                "summary": "Delete staff member",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "staff id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/students": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "students"
+                    "Dean"
                 ],
                 "summary": "List students",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.StudentList"
+                            "$ref": "#/definitions/response.PaginatedUserProfiles"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3395,17 +1344,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "students"
+                    "Dean"
                 ],
                 "summary": "Create student",
                 "parameters": [
                     {
-                        "description": "student",
-                        "name": "input",
+                        "description": "Student payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreateStudent"
+                            "$ref": "#/definitions/request.CreateStudentRequest"
                         }
                     }
                 ],
@@ -3413,40 +1362,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/response.Student"
+                            "$ref": "#/definitions/response.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/students/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "students"
-                ],
-                "summary": "Get student",
-                "parameters": [
+        "/dean/students/{studentId}": {
+            "patch": {
+                "security": [
                     {
-                        "type": "string",
-                        "description": "student id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
+                        "BearerAuth": []
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Student"
-                        }
-                    }
-                }
-            },
-            "put": {
                 "consumes": [
                     "application/json"
                 ],
@@ -3454,24 +1388,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "students"
+                    "Dean"
                 ],
                 "summary": "Update student",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "student id",
-                        "name": "id",
+                        "description": "Student ID",
+                        "name": "studentId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "student",
-                        "name": "input",
+                        "description": "Update payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.UpdateStudent"
+                            "$ref": "#/definitions/request.UpdateStudentRequest"
                         }
                     }
                 ],
@@ -3479,218 +1413,49 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Student"
+                            "$ref": "#/definitions/response.UserProfile"
                         }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "students"
-                ],
-                "summary": "Delete student",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "student id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/subjects": {
+        "/dean/subjects": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "subjects"
+                    "Dean"
                 ],
                 "summary": "List subjects",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.SubjectList"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "subjects"
-                ],
-                "summary": "Create subject",
                 "parameters": [
-                    {
-                        "description": "subject",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.CreateSubject"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/response.Subject"
-                        }
-                    }
-                }
-            }
-        },
-        "/subjects/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "subjects"
-                ],
-                "summary": "Get subject",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "subject id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Subject"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "subjects"
-                ],
-                "summary": "Update subject",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "subject id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "subject",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.UpdateSubject"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Subject"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "subjects"
-                ],
-                "summary": "Delete subject",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "subject id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/teachers": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "teachers"
-                ],
-                "summary": "List teachers",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "filter by department",
-                        "name": "departmentId",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by name",
-                        "name": "q",
-                        "in": "query"
-                    },
                     {
                         "type": "integer",
-                        "description": "limit",
+                        "description": "Limit",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "offset",
+                        "description": "Offset",
                         "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
                         "in": "query"
                     }
                 ],
@@ -3698,12 +1463,29 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.TeacherList"
+                            "$ref": "#/definitions/response.PaginatedSubjectSummaries"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3711,17 +1493,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "teachers"
+                    "Dean"
                 ],
-                "summary": "Create teacher",
+                "summary": "Create subject",
                 "parameters": [
                     {
-                        "description": "teacher",
-                        "name": "input",
+                        "description": "Subject payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.CreateTeacher"
+                            "$ref": "#/definitions/request.CreateSubjectRequest"
                         }
                     }
                 ],
@@ -3729,52 +1511,56 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/response.Teacher"
+                            "$ref": "#/definitions/response.SubjectSummary"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/teachers/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
+        "/dean/subjects/{subjectId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
                 "tags": [
-                    "teachers"
+                    "Dean"
                 ],
-                "summary": "Get teacher",
+                "summary": "Soft delete subject",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "teacher id",
-                        "name": "id",
+                        "description": "Subject ID",
+                        "name": "subjectId",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.Teacher"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
             },
-            "put": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -3782,24 +1568,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "teachers"
+                    "Dean"
                 ],
-                "summary": "Update teacher",
+                "summary": "Update subject",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "teacher id",
-                        "name": "id",
+                        "description": "Subject ID",
+                        "name": "subjectId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "teacher",
-                        "name": "input",
+                        "description": "Update payload",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.UpdateTeacher"
+                            "$ref": "#/definitions/request.UpdateSubjectRequest"
                         }
                     }
                 ],
@@ -3807,30 +1593,469 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Teacher"
+                            "$ref": "#/definitions/response.SubjectSummary"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Error"
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
-            },
+            }
+        },
+        "/dean/subjects/{subjectId}/assign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Assign teacher to subject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject ID",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Assignment payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AssignTeacherRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/dean/subjects/{subjectId}/groups": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Attach group to subject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Subject ID",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Group link payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AttachGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/dean/subjects/{subjectId}/teachers/{teacherId}": {
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Открепить преподавателя от предмета",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID преподавателя",
+                        "name": "teacherId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/dean/teachers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "teachers"
+                    "Dean"
                 ],
-                "summary": "Delete teacher",
+                "summary": "List teachers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search phrase",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedUserProfiles"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Create teacher",
+                "parameters": [
+                    {
+                        "description": "Teacher payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreateTeacherRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/dean/teachers/{teacherId}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dean"
+                ],
+                "summary": "Update teacher",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "teacher id",
-                        "name": "id",
+                        "description": "Teacher ID",
+                        "name": "teacherId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateTeacherRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Личный кабинет студента",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.StudentDashboardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/schedule": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Расписание студента",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Дата с",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Дата по",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/response.ScheduleEntry"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/subjects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Список предметов студента",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Лимит",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Поиск по названию или коду",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaginatedStudentSubjects"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/student/subjects/{subjectId}/averages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Средний балл по предмету",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
                         "in": "path",
                         "required": true
                     }
@@ -3839,10 +2064,401 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
+                            "$ref": "#/definitions/response.AverageMetricResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Кабинет преподавателя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.TeacherDashboardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/grades": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Выставить или обновить оценку",
+                "parameters": [
+                    {
+                        "description": "Данные оценки",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.GradeUpsertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.GradeDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/grades/{gradeId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Удалить оценку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID оценки",
+                        "name": "gradeId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Изменить оценку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID оценки",
+                        "name": "gradeId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новая оценка",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.GradeUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.GradeDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/schedule": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Расписание преподавателя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID группы",
+                        "name": "groupId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Дата с",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Дата по",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/response.ScheduleEntry"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/subjects/{subjectId}/groups/{groupId}/grades": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Таблица оценок по предмету и группе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID группы",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Лимит студентов",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Поиск по ФИО или ИНС",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.GradeTableResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teacher/subjects/{subjectId}/groups/{groupId}/students/{studentId}/averages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Средние показатели студента",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID предмета",
+                        "name": "subjectId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID группы",
+                        "name": "groupId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID студента",
+                        "name": "studentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AverageMetricResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
@@ -3850,1093 +2466,312 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "request.AttendanceBulkItem": {
+        "models.UserRole": {
+            "type": "string",
+            "enum": [
+                "admin",
+                "dean",
+                "teacher",
+                "student"
+            ],
+            "x-enum-varnames": [
+                "UserRoleAdmin",
+                "UserRoleDean",
+                "UserRoleTeacher",
+                "UserRoleStudent"
+            ]
+        },
+        "request.AdminLoginRequest": {
             "type": "object",
             "required": [
-                "status",
-                "studentId"
+                "ins",
+                "password"
             ],
             "properties": {
-                "status": {
+                "ins": {
                     "type": "string"
                 },
-                "studentId": {
-                    "type": "string"
+                "password": {
+                    "type": "string",
+                    "minLength": 8
                 }
             }
         },
-        "request.CreateAcademicSession": {
+        "request.AssignStudentToGroupRequest": {
             "type": "object",
             "required": [
-                "code",
-                "endsAt",
-                "kind",
-                "startsAt"
+                "studentIds"
             ],
             "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
+                "studentIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "request.CreateAdmin": {
+        "request.AssignTeacherRequest": {
             "type": "object",
             "required": [
-                "fullName"
+                "teacherId"
             ],
             "properties": {
-                "fullName": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateAssessment": {
-            "type": "object",
-            "required": [
-                "courseId",
-                "dateAt",
-                "scale",
-                "type"
-            ],
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "maxPts": {
-                    "type": "number"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "scale": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateAssessmentGrade": {
-            "type": "object",
-            "required": [
-                "assessmentId",
-                "studentId"
-            ],
-            "properties": {
-                "assessmentId": {
-                    "type": "string"
-                },
-                "scale": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                },
-                "valueNum": {
-                    "type": "number"
-                },
-                "valuePass": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.CreateAttendance": {
-            "type": "object",
-            "required": [
-                "lessonId",
-                "status",
-                "studentId"
-            ],
-            "properties": {
-                "lessonId": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateCourse": {
-            "type": "object",
-            "required": [
-                "academicSessionId",
-                "departmentId",
-                "subjectId",
-                "title"
-            ],
-            "properties": {
-                "academicSessionId": {
-                    "type": "string"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "subjectId": {
-                    "type": "string"
-                },
                 "teacherId": {
                     "type": "string"
-                },
-                "title": {
-                    "type": "string"
                 }
             }
         },
-        "request.CreateCredit": {
+        "request.AttachGroupRequest": {
             "type": "object",
             "required": [
-                "courseId",
-                "studentId",
-                "type"
+                "groupId"
             ],
             "properties": {
-                "approvedById": {
-                    "type": "string"
-                },
-                "courseId": {
-                    "type": "string"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateDepartment": {
-            "type": "object",
-            "required": [
-                "code",
-                "name"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateEnrollment": {
-            "type": "object",
-            "required": [
-                "courseId",
-                "studentId"
-            ],
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateExamAttempt": {
-            "type": "object",
-            "required": [
-                "assessmentId",
-                "resultScale",
-                "studentId"
-            ],
-            "properties": {
-                "assessmentId": {
-                    "type": "string"
-                },
-                "attemptNo": {
-                    "type": "integer"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "resultScale": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                },
-                "valueNum": {
-                    "type": "integer"
-                },
-                "valuePass": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.CreateExamSession": {
-            "type": "object",
-            "required": [
-                "academicSessionId",
-                "name"
-            ],
-            "properties": {
-                "academicSessionId": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateGroup": {
-            "type": "object",
-            "required": [
-                "code",
-                "name",
-                "programId",
-                "year"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
-        "request.CreateLesson": {
-            "type": "object",
-            "required": [
-                "courseId",
-                "endsAt",
-                "kind",
-                "startsAt"
-            ],
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreatePractice": {
-            "type": "object",
-            "required": [
-                "title"
-            ],
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "endDate": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "startDate": {
-                    "type": "string"
-                },
-                "supervisorId": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateProgram": {
-            "type": "object",
-            "required": [
-                "code",
-                "departmentId",
-                "name"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateStaff": {
-            "type": "object",
-            "required": [
-                "fullName"
-            ],
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "fullName": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.CreateStudent": {
-            "type": "object",
-            "required": [
-                "fullName",
-                "individualNumber"
-            ],
-            "properties": {
-                "fullName": {
-                    "type": "string"
-                },
                 "groupId": {
                     "type": "string"
-                },
-                "individualNumber": {
-                    "type": "string"
                 }
             }
         },
-        "request.CreateSubject": {
+        "request.ChangePasswordRequest": {
             "type": "object",
             "required": [
-                "code",
-                "departmentId",
-                "title"
+                "currentPassword",
+                "newPassword"
             ],
             "properties": {
-                "code": {
-                    "type": "string"
+                "currentPassword": {
+                    "type": "string",
+                    "minLength": 8
                 },
-                "credits": {
-                    "type": "integer"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 8
                 }
             }
         },
-        "request.CreateTeacher": {
+        "request.CreateDeanRequest": {
             "type": "object",
             "required": [
-                "fullName"
-            ],
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "fullName": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.GradeItem": {
-            "type": "object",
-            "required": [
-                "studentId"
-            ],
-            "properties": {
-                "scale": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                },
-                "valueNum": {
-                    "type": "number"
-                },
-                "valuePass": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.Login": {
-            "type": "object",
-            "required": [
-                "email",
+                "firstName",
+                "lastName",
                 "password"
             ],
             "properties": {
                 "email": {
                     "type": "string"
                 },
-                "password": {
+                "firstName": {
                     "type": "string"
                 },
-                "totp": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.Logout": {
-            "type": "object",
-            "properties": {
-                "refresh": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.PracticeEnrollmentItem": {
-            "type": "object",
-            "required": [
-                "studentId"
-            ],
-            "properties": {
-                "place": {
+                "lastName": {
                     "type": "string"
                 },
-                "status": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.Refresh": {
-            "type": "object",
-            "required": [
-                "refresh"
-            ],
-            "properties": {
-                "refresh": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.Register": {
-            "type": "object",
-            "required": [
-                "email",
-                "fullName",
-                "password",
-                "role"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "fullName": {
+                "middleName": {
                     "type": "string"
                 },
                 "password": {
                     "type": "string",
                     "minLength": 8
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.RequestReset": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.ResetPassword": {
-            "type": "object",
-            "required": [
-                "password",
-                "token"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string",
-                    "minLength": 8
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateAcademicSession": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateAdmin": {
-            "type": "object",
-            "properties": {
-                "fullName": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateAssessment": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "maxPts": {
-                    "type": "number"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "scale": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateAssessmentGrade": {
-            "type": "object",
-            "properties": {
-                "scale": {
-                    "type": "string"
-                },
-                "valueNum": {
-                    "type": "number"
-                },
-                "valuePass": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.UpdateAttendance": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateCourse": {
-            "type": "object",
-            "properties": {
-                "academicSessionId": {
-                    "type": "string"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "subjectId": {
-                    "type": "string"
-                },
-                "teacherId": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateCredit": {
-            "type": "object",
-            "properties": {
-                "approvedById": {
-                    "type": "string"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateDepartment": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateEnrollment": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateExamAttempt": {
-            "type": "object",
-            "properties": {
-                "attemptNo": {
-                    "type": "integer"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "resultScale": {
-                    "type": "string"
-                },
-                "valueNum": {
-                    "type": "integer"
-                },
-                "valuePass": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.UpdateExamSession": {
-            "type": "object",
-            "properties": {
-                "endsAt": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateGroup": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
-        "request.UpdateLesson": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdatePractice": {
-            "type": "object",
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "endDate": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "startDate": {
-                    "type": "string"
-                },
-                "supervisorId": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateProgram": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.UpdateStaff": {
-            "type": "object",
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "fullName": {
-                    "type": "string"
                 },
                 "position": {
                     "type": "string"
+                }
+            }
+        },
+        "request.CreateGroupRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
                 },
-                "userId": {
+                "name": {
                     "type": "string"
                 }
             }
         },
-        "request.UpdateStudent": {
+        "request.CreateStudentRequest": {
             "type": "object",
+            "required": [
+                "firstName",
+                "lastName",
+                "password"
+            ],
             "properties": {
-                "fullName": {
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
                     "type": "string"
                 },
                 "groupId": {
                     "type": "string"
                 },
-                "individualNumber": {
+                "lastName": {
                     "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
                 }
             }
         },
-        "request.UpdateSubject": {
+        "request.CreateSubjectRequest": {
             "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
             "properties": {
                 "code": {
                     "type": "string"
                 },
-                "credits": {
-                    "type": "integer"
-                },
-                "departmentId": {
+                "description": {
                     "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.CreateTeacherRequest": {
+            "type": "object",
+            "required": [
+                "firstName",
+                "lastName",
+                "password"
+            ],
+            "properties": {
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "request.UpdateTeacher": {
+        "request.GradeUpdateRequest": {
             "type": "object",
+            "required": [
+                "value"
+            ],
             "properties": {
-                "departmentId": {
+                "notes": {
                     "type": "string"
                 },
-                "fullName": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.AcademicSession": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.AcademicSessionList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.AcademicSession"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Admin": {
-            "type": "object",
-            "properties": {
-                "fullName": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.AdminList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Admin"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Assessment": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "maxPts": {
+                "value": {
                     "type": "number"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "scale": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
                 }
             }
         },
-        "response.AssessmentGrade": {
+        "request.GradeUpsertRequest": {
             "type": "object",
+            "required": [
+                "sessionId",
+                "studentId",
+                "value"
+            ],
             "properties": {
-                "assessmentId": {
+                "notes": {
                     "type": "string"
                 },
-                "gradedAt": {
-                    "type": "string"
-                },
-                "gradedBy": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "scale": {
+                "sessionId": {
                     "type": "string"
                 },
                 "studentId": {
                     "type": "string"
                 },
-                "valueNum": {
+                "value": {
                     "type": "number"
-                },
-                "valuePass": {
-                    "type": "boolean"
                 }
             }
         },
-        "response.AssessmentGradeList": {
+        "request.INSLoginRequest": {
             "type": "object",
+            "required": [
+                "ins",
+                "password"
+            ],
             "properties": {
-                "items": {
+                "ins": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
+        "request.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refreshToken"
+            ],
+            "properties": {
+                "refreshToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
+        "request.ScheduleSessionRequest": {
+            "type": "object",
+            "required": [
+                "date",
+                "groupIds",
+                "slot",
+                "subjectId",
+                "teacherId"
+            ],
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "groupIds": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/response.AssessmentGrade"
+                        "type": "string"
                     }
                 },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.AssessmentList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Assessment"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Attendance": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "lessonId": {
-                    "type": "string"
-                },
-                "markedAt": {
-                    "type": "string"
-                },
-                "markedBy": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.AttendanceList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Attendance"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Course": {
-            "type": "object",
-            "properties": {
-                "academicSessionId": {
-                    "type": "string"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
+                "slot": {
+                    "type": "integer",
+                    "maximum": 6,
+                    "minimum": 1
                 },
                 "subjectId": {
                     "type": "string"
@@ -4944,188 +2779,226 @@ const docTemplate = `{
                 "teacherId": {
                     "type": "string"
                 },
+                "topic": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateDeanRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateGroupRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateStudentRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "groupId": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateSubjectRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateTeacherRequest": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "response.CourseList": {
+        "response.AuthResponse": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Course"
-                    }
+                "accessToken": {
+                    "type": "string"
                 },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
+                "expiresAt": {
+                    "type": "string"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/response.UserSummary"
                 }
             }
         },
-        "response.CreatedID": {
+        "response.AverageMetricResponse": {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string"
+                "groupAverage": {
+                    "type": "number"
+                },
+                "overallAverage": {
+                    "type": "number"
+                },
+                "subjectAverage": {
+                    "type": "number"
                 }
             }
         },
-        "response.Credit": {
-            "type": "object",
-            "properties": {
-                "approvedById": {
-                    "type": "string"
-                },
-                "courseId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.CreditList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Credit"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Department": {
+        "response.ErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
                     "type": "string"
                 },
-                "id": {
-                    "type": "string"
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.DepartmentList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Department"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Enrollment": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "studentId": {
+                "message": {
                     "type": "string"
                 }
             }
         },
-        "response.EnrollmentList": {
+        "response.GradeDetail": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Enrollment"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Error": {
-            "type": "object",
-            "properties": {
-                "details": {},
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.ExamAttempt": {
-            "type": "object",
-            "properties": {
-                "assessmentId": {
+                "assessedAt": {
                     "type": "string"
                 },
-                "attemptNo": {
-                    "type": "integer"
-                },
-                "dateAt": {
-                    "type": "string"
-                },
-                "id": {
+                "gradeId": {
                     "type": "string"
                 },
                 "notes": {
                     "type": "string"
                 },
-                "resultScale": {
+                "sessionId": {
                     "type": "string"
                 },
-                "studentId": {
-                    "type": "string"
+                "student": {
+                    "$ref": "#/definitions/response.UserProfile"
                 },
-                "valueNum": {
-                    "type": "integer"
-                },
-                "valuePass": {
-                    "type": "boolean"
+                "value": {
+                    "type": "number"
                 }
             }
         },
-        "response.ExamAttemptList": {
+        "response.GradeTableResponse": {
+            "type": "object",
+            "properties": {
+                "grades": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.GradeDetail"
+                    }
+                },
+                "group": {
+                    "$ref": "#/definitions/response.GroupSummary"
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.PageMeta"
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SessionSummary"
+                    }
+                },
+                "students": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.UserProfile"
+                    }
+                },
+                "subject": {
+                    "$ref": "#/definitions/response.SubjectSummary"
+                }
+            }
+        },
+        "response.GroupRankingItem": {
+            "type": "object",
+            "properties": {
+                "average": {
+                    "type": "number"
+                },
+                "group": {
+                    "$ref": "#/definitions/response.GroupSummary"
+                }
+            }
+        },
+        "response.GroupRankingResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/response.ExamAttempt"
+                        "$ref": "#/definitions/response.GroupRankingItem"
                     }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
                 }
             }
         },
-        "response.ExamSession": {
+        "response.GroupSummary": {
             "type": "object",
             "properties": {
-                "academicSessionId": {
-                    "type": "string"
-                },
-                "endsAt": {
+                "description": {
                     "type": "string"
                 },
                 "id": {
@@ -5133,106 +3006,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
                 }
             }
         },
-        "response.ExamSessionList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.ExamSession"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Group": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "programId": {
-                    "type": "string"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
-        "response.GroupList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Group"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Lesson": {
-            "type": "object",
-            "properties": {
-                "courseId": {
-                    "type": "string"
-                },
-                "endsAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "room": {
-                    "type": "string"
-                },
-                "startsAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.LessonList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Lesson"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.OK": {
-            "type": "object",
-            "properties": {
-                "ok": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "response.Page": {
+        "response.PageMeta": {
             "type": "object",
             "properties": {
                 "limit": {
@@ -5246,90 +3023,157 @@ const docTemplate = `{
                 }
             }
         },
-        "response.Practice": {
+        "response.PaginatedGroupSummaries": {
             "type": "object",
             "properties": {
-                "departmentId": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.GroupSummary"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.PageMeta"
+                }
+            }
+        },
+        "response.PaginatedStudentSubjects": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.StudentSubjectGrade"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.PageMeta"
+                }
+            }
+        },
+        "response.PaginatedSubjectSummaries": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SubjectSummary"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.PageMeta"
+                }
+            }
+        },
+        "response.PaginatedUserProfiles": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.UserProfile"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/response.PageMeta"
+                }
+            }
+        },
+        "response.ScheduleEntry": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "$ref": "#/definitions/response.GroupSummary"
+                },
+                "session": {
+                    "$ref": "#/definitions/response.SessionSummary"
+                },
+                "subject": {
+                    "$ref": "#/definitions/response.SubjectSummary"
+                },
+                "teacher": {
+                    "$ref": "#/definitions/response.UserProfile"
+                }
+            }
+        },
+        "response.SessionSummary": {
+            "type": "object",
+            "properties": {
+                "endsAt": {
                     "type": "string"
                 },
-                "description": {
-                    "type": "string"
-                },
-                "endDate": {
+                "groupId": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "programId": {
+                "startsAt": {
                     "type": "string"
                 },
-                "startDate": {
+                "subjectId": {
                     "type": "string"
                 },
-                "supervisorId": {
-                    "type": "string"
-                },
-                "title": {
+                "topic": {
                     "type": "string"
                 }
             }
         },
-        "response.PracticeEnrollment": {
+        "response.StudentDashboardResponse": {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string"
+                "averageGpa": {
+                    "type": "number"
                 },
-                "place": {
-                    "type": "string"
+                "group": {
+                    "$ref": "#/definitions/response.GroupSummary"
                 },
-                "practiceId": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "studentId": {
-                    "type": "string"
+                "profile": {
+                    "$ref": "#/definitions/response.UserProfile"
                 }
             }
         },
-        "response.PracticeEnrollmentList": {
+        "response.StudentSessionGrade": {
             "type": "object",
             "properties": {
-                "items": {
+                "grade": {
+                    "type": "number"
+                },
+                "gradeId": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "session": {
+                    "$ref": "#/definitions/response.SessionSummary"
+                }
+            }
+        },
+        "response.StudentSubjectGrade": {
+            "type": "object",
+            "properties": {
+                "average": {
+                    "type": "number"
+                },
+                "sessions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/response.PracticeEnrollment"
+                        "$ref": "#/definitions/response.StudentSessionGrade"
                     }
                 },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
+                "subject": {
+                    "$ref": "#/definitions/response.SubjectSummary"
                 }
             }
         },
-        "response.PracticeList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Practice"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Program": {
+        "response.SubjectSummary": {
             "type": "object",
             "properties": {
                 "code": {
                     "type": "string"
                 },
-                "departmentId": {
+                "description": {
                     "type": "string"
                 },
                 "id": {
@@ -5340,187 +3184,89 @@ const docTemplate = `{
                 }
             }
         },
-        "response.ProgramList": {
+        "response.TeacherDashboardResponse": {
             "type": "object",
             "properties": {
-                "items": {
+                "profile": {
+                    "$ref": "#/definitions/response.UserProfile"
+                },
+                "subjects": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/response.Program"
+                        "$ref": "#/definitions/response.TeacherSubjectSummary"
                     }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
                 }
             }
         },
-        "response.Staff": {
+        "response.TeacherSubjectSummary": {
             "type": "object",
             "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "fullName": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.StaffList": {
-            "type": "object",
-            "properties": {
-                "items": {
+                "groups": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/response.Staff"
+                        "$ref": "#/definitions/response.GroupSummary"
                     }
                 },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
+                "subject": {
+                    "$ref": "#/definitions/response.SubjectSummary"
                 }
             }
         },
-        "response.Student": {
+        "response.UserProfile": {
             "type": "object",
             "properties": {
-                "fullName": {
+                "avatarUrl": {
                     "type": "string"
                 },
-                "groupId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "individualNumber": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.StudentList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Student"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Subject": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "credits": {
-                    "type": "integer"
-                },
-                "departmentId": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.SubjectList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Subject"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.Teacher": {
-            "type": "object",
-            "properties": {
-                "departmentId": {
-                    "type": "string"
-                },
-                "fullName": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.TeacherList": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/response.Teacher"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/response.Page"
-                }
-            }
-        },
-        "response.TokenPair": {
-            "type": "object",
-            "properties": {
-                "access": {
-                    "type": "string"
-                },
-                "refresh": {
-                    "type": "string"
-                }
-            }
-        },
-        "response.User": {
-            "type": "object",
-            "properties": {
                 "email": {
                     "type": "string"
                 },
-                "fullName": {
+                "firstName": {
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "ins": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
                     "type": "string"
                 },
                 "role": {
                     "type": "string"
-                },
-                "status": {
+                }
+            }
+        },
+        "response.UserSummary": {
+            "type": "object",
+            "properties": {
+                "avatarUrl": {
                     "type": "string"
                 },
-                "totpEnabled": {
-                    "type": "boolean"
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ins": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "middleName": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
                 }
             }
         }
@@ -5542,7 +3288,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "GradeFlow API",
-	Description:      "API for schedule, assessments, attendance and grades.",
+	Description:      "GradeFlow management API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

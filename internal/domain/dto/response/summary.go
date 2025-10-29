@@ -68,6 +68,7 @@ type GradeTableResponse struct {
 	Sessions []SessionSummary `json:"sessions"`
 	Students []UserProfile    `json:"students"`
 	Grades   []GradeDetail    `json:"grades"`
+	Meta     *PageMeta        `json:"meta,omitempty"`
 }
 
 // StudentSubjectGrade groups student grades by subject.
@@ -108,4 +109,12 @@ type GroupRankingItem struct {
 // GroupRankingResponse lists ranking by groups.
 type GroupRankingResponse struct {
 	Items []GroupRankingItem `json:"items"`
+}
+
+// ScheduleEntry aggregates session details for timetable views.
+type ScheduleEntry struct {
+	Session SessionSummary `json:"session"`
+	Subject SubjectSummary `json:"subject"`
+	Group   GroupSummary   `json:"group"`
+	Teacher *UserProfile   `json:"teacher,omitempty"`
 }

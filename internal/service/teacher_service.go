@@ -175,6 +175,7 @@ func (s *TeacherService) GradeTable(ctx context.Context, teacherID, subjectID, g
 		})
 	}
 	resp.Students = studentProfiles
+	resp.Meta = &respdto.PageMeta{Limit: len(studentProfiles), Offset: 0, Total: len(studentProfiles)}
 
 	gradeLookup := make(map[uuid.UUID]map[uuid.UUID]models.Grade)
 	for _, grade := range grades {
@@ -353,4 +354,26 @@ func (s *TeacherService) SubjectAverages(ctx context.Context, groupID, subjectID
 		GroupAverage:   groupAvg,
 		OverallAverage: overall,
 	}, nil
+}
+
+// Schedule returns teacher timetable filtered by optional parameters.
+func (s *TeacherService) Schedule(ctx context.Context, teacherID uuid.UUID, query reqdto.ScheduleQuery) ([]respdto.ScheduleEntry, error) {
+	filter := repository.SessionFilter{TeacherID: &teacherID}
+	if id, err := uuidFromStringPtr(query.SubjectID); err != nil {
+		return nil, fmt.Errorf("parse subjectId: %w", err)
+	} else if id != nil {
+		filter.SubjectID = id
+	}
+	if id, err := uuidFromStringPtr(query.GroupID); err != nil {
+		return nil, fmt.Errorf("parse groupId: %w", err)
+	} else if id != nil {
+		filter.GroupID = id
+	}
+	filter.From = query.From
+	filter.To = query.To
+	sessions, err := s.sessions.ListByFilter(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	return buildScheduleEntries(sessions), nil
 }

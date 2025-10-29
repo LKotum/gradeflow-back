@@ -16,3 +16,9 @@ type INSLoginRequest struct {
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refreshToken" binding:"required"`
 }
+
+// ChangePasswordRequest allows a user to change password.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required,min=8"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+}

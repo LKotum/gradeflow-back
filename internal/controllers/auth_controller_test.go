@@ -17,6 +17,7 @@ import (
 
 	reqdto "gradeflow/internal/domain/dto/request"
 	"gradeflow/internal/domain/models"
+	"gradeflow/internal/middleware"
 	"gradeflow/internal/repository"
 	"gradeflow/internal/service"
 )
@@ -66,14 +67,18 @@ func (r *controllerUserRepo) GetByINS(_ context.Context, ins string) (*models.Us
 	return r.GetByID(context.Background(), id)
 }
 
-func (r *controllerUserRepo) ListByRole(_ context.Context, role models.UserRole) ([]models.User, error) {
+func (r *controllerUserRepo) ListByRole(_ context.Context, role models.UserRole, _ repository.ListOptions) ([]models.User, int64, error) {
 	var data []models.User
 	for _, u := range r.users {
 		if u.Role == role {
 			data = append(data, *u)
 		}
 	}
-	return data, nil
+	return data, int64(len(data)), nil
+}
+
+func (r *controllerUserRepo) ListDeletedByRole(context.Context, models.UserRole, repository.ListOptions) ([]models.User, int64, error) {
+	return nil, 0, nil
 }
 
 func (r *controllerUserRepo) Update(context.Context, *models.User) error { return nil }
@@ -95,6 +100,15 @@ func (r *controllerUserRepo) UpsertRefreshToken(_ context.Context, token *models
 	return nil
 }
 
+func (r *controllerUserRepo) SoftDelete(context.Context, uuid.UUID) error { return nil }
+
+func (r *controllerUserRepo) Restore(context.Context, uuid.UUID) error { return nil }
+
+func (r *controllerUserRepo) DeleteRefreshToken(_ context.Context, userID uuid.UUID) error {
+	delete(r.refreshTokens, userID)
+	return nil
+}
+
 func (r *controllerUserRepo) NextINS(context.Context) (string, error) {
 	value := r.nextINS
 	r.nextINS++
@@ -109,14 +123,14 @@ func TestAuthControllerLoginByINS(t *testing.T) {
 	svc := service.NewAuthService(repo, "secret", time.Minute, time.Hour)
 	ins := "INS-CTRL-1"
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-user := &models.User{
-    Base: models.Base{ID: uuid.New()},
-    Role:         models.UserRoleTeacher,
-    INS:          &ins,
-    PasswordHash: string(hash),
-    FirstName:    "Lily",
-    LastName:     "Login",
-}
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleTeacher,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Lily",
+		LastName:     "Login",
+	}
 	repo.Create(context.Background(), user)
 
 	ctrl := NewAuthController(svc, repo)
@@ -139,5 +153,79 @@ user := &models.User{
 	}
 	if payload["accessToken"] == "" {
 		t.Fatal("expected accessToken in response")
+	}
+}
+
+func TestAuthControllerChangePassword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := newControllerUserRepo()
+	svc := service.NewAuthService(repo, "secret", time.Minute, time.Hour)
+	ins := "00009999"
+	oldPassword := "OldPass123!"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleTeacher,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Paula",
+		LastName:     "Patch",
+	}
+	repo.Create(context.Background(), user)
+
+	ctrl := NewAuthController(svc, repo)
+	router := gin.New()
+	private := router.Group("/auth")
+	private.Use(func(ctx *gin.Context) {
+		ctx.Set(middleware.ContextUserIDKey, user.ID.String())
+	})
+	ctrl.RegisterPrivateRoutes(private)
+
+	body, _ := json.Marshal(reqdto.ChangePasswordRequest{CurrentPassword: oldPassword, NewPassword: "NewPass456!"})
+	req := httptest.NewRequest(http.MethodPatch, "/auth/password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d (%s)", resp.Code, resp.Body.String())
+	}
+	if _, err := svc.LoginByINS(context.Background(), reqdto.INSLoginRequest{INS: ins, Password: "NewPass456!"}); err != nil {
+		t.Fatalf("login with new password failed: %v", err)
+	}
+}
+
+func TestAuthControllerChangePasswordInvalid(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := newControllerUserRepo()
+	svc := service.NewAuthService(repo, "secret", time.Minute, time.Hour)
+	ins := "00009998"
+	hash, _ := bcrypt.GenerateFromPassword([]byte("ValidPass1!"), bcrypt.DefaultCost)
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleStudent,
+		INS:          &ins,
+		PasswordHash: string(hash),
+	}
+	repo.Create(context.Background(), user)
+
+	ctrl := NewAuthController(svc, repo)
+	router := gin.New()
+	private := router.Group("/auth")
+	private.Use(func(ctx *gin.Context) {
+		ctx.Set(middleware.ContextUserIDKey, user.ID.String())
+	})
+	ctrl.RegisterPrivateRoutes(private)
+
+	body, _ := json.Marshal(reqdto.ChangePasswordRequest{CurrentPassword: "WrongPass", NewPassword: "NewPass123!"})
+	req := httptest.NewRequest(http.MethodPatch, "/auth/password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.Code)
 	}
 }

@@ -11,8 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
+	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -23,7 +24,9 @@ import (
 	"gradeflow/internal/migrations"
 	gormrepo "gradeflow/internal/repository/gorm"
 	"gradeflow/internal/service"
+	"gradeflow/pkg/cache"
 	"gradeflow/pkg/logger"
+	docs "gradeflow/pkg/swagger"
 )
 
 // App aggregates API dependencies.
@@ -32,6 +35,8 @@ type App struct {
 	Engine *gin.Engine
 	DB     *gorm.DB
 	MinIO  *minio.Client
+	Redis  *redis.Client
+	Cache  cache.Store
 }
 
 // New constructs the application with wired dependencies.
@@ -42,17 +47,32 @@ func New(cfg config.Config) (*App, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-    adminBootstrap, err := migrations.Run(ctx, db)
-    if err != nil {
-        return nil, fmt.Errorf("run migrations: %w", err)
-    }
-    if adminBootstrap != nil {
-        logger.Info("bootstrap admin credentials", "ins", adminBootstrap.INS, "password", adminBootstrap.Password)
-    }
+	adminBootstrap, err := migrations.Run(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("run migrations: %w", err)
+	}
+	if adminBootstrap != nil {
+		logger.Info("bootstrap admin credentials", "ins", adminBootstrap.INS, "password", adminBootstrap.Password)
+	}
 
 	minioClient, err := initMinIO(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("init minio: %w", err)
+	}
+
+	var cacheStore cache.Store = cache.NewNoop()
+	var redisClient *redis.Client
+	if cfg.Redis.Addr != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     cfg.Redis.Addr,
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			logger.Warn("redis unavailable, falling back to noop cache", "error", err)
+		} else {
+			cacheStore = cache.NewRedis(redisClient, 5*time.Minute)
+		}
 	}
 
 	userRepo := gormrepo.NewUserRepository(db)
@@ -62,8 +82,8 @@ func New(cfg config.Config) (*App, error) {
 	gradeRepo := gormrepo.NewGradeRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
-	adminSvc := service.NewAdminService(userRepo)
-	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
+	adminSvc := service.NewAdminService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore)
+	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore)
 	teacherSvc := service.NewTeacherService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
 	studentSvc := service.NewStudentService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
 
@@ -84,6 +104,8 @@ func New(cfg config.Config) (*App, error) {
 		cfgCors.AllowOrigins = strings.Split(cfg.Cors, ",")
 	}
 	r.Use(gin.Recovery(), cors.New(cfgCors))
+
+	docs.SwaggerInfo.BasePath = cfg.APIBasePath
 
 	r.GET("/healthz", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -111,7 +133,7 @@ func New(cfg config.Config) (*App, error) {
 	studentRoutes.Use(middleware.RequireRoles(string(models.UserRoleStudent)))
 	studentCtrl.RegisterRoutes(studentRoutes)
 
-	return &App{Cfg: cfg, Engine: r, DB: db, MinIO: minioClient}, nil
+	return &App{Cfg: cfg, Engine: r, DB: db, MinIO: minioClient, Redis: redisClient, Cache: cacheStore}, nil
 }
 
 // Run starts the HTTP server.

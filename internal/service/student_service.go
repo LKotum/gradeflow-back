@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	reqdto "gradeflow/internal/domain/dto/request"
 	respdto "gradeflow/internal/domain/dto/response"
 	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
@@ -165,4 +166,28 @@ func (s *StudentService) SubjectAverage(ctx context.Context, studentID, subjectI
 		overall, _ = s.grades.GroupAverage(ctx, *user.Student.GroupID)
 	}
 	return &respdto.AverageMetricResponse{SubjectAverage: studentAvg, GroupAverage: groupAvg, OverallAverage: overall}, nil
+}
+
+// Schedule returns student's timetable for their group.
+func (s *StudentService) Schedule(ctx context.Context, studentID uuid.UUID, query reqdto.ScheduleQuery) ([]respdto.ScheduleEntry, error) {
+	user, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	if user.Student == nil || user.Student.GroupID == nil {
+		return []respdto.ScheduleEntry{}, nil
+	}
+	filter := repository.SessionFilter{GroupID: user.Student.GroupID}
+	if id, err := uuidFromStringPtr(query.SubjectID); err != nil {
+		return nil, fmt.Errorf("parse subjectId: %w", err)
+	} else if id != nil {
+		filter.SubjectID = id
+	}
+	filter.From = query.From
+	filter.To = query.To
+	sessions, err := s.sessions.ListByFilter(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	return buildScheduleEntries(sessions), nil
 }

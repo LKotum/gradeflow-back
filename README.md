@@ -47,7 +47,7 @@ A convenience stack is provided:
 docker compose up --build
 ```
 
-This brings up PostgreSQL, MinIO, the Go API (`http://localhost:8080`), the Vite dev server (`http://localhost:5173`), and Adminer for DB inspection (`http://localhost:8081`). The compose file mounts `../gradleflow-front` into the frontend container.
+This brings up PostgreSQL, MinIO, Redis (for cache), the Go API (`http://localhost:8080`), and the Vite dev server (`http://localhost:5173`). The compose file mounts `../gradleflow-front` into the frontend container, so hot reload works out of the box.
 
 When the API runs migrations for the first time it bootstraps an administrator account, logging the generated INS and password at startup. Admin authentication now uses the INS alongside the password.
 

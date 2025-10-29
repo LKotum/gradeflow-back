@@ -12,6 +12,7 @@ import (
 
 	reqdto "gradeflow/internal/domain/dto/request"
 	"gradeflow/internal/domain/models"
+	"gradeflow/internal/repository"
 )
 
 var errNotFound = errors.New("not found")
@@ -21,7 +22,7 @@ type fakeUserRepo struct {
 	byINS         map[string]uuid.UUID
 	profiles      map[uuid.UUID]*models.StudentProfile
 	refreshTokens map[uuid.UUID]*models.RefreshToken
-    nextINS      int
+ 	nextINS       int
 }
 
 func newFakeUserRepo() *fakeUserRepo {
@@ -30,7 +31,7 @@ func newFakeUserRepo() *fakeUserRepo {
 		byINS:         make(map[string]uuid.UUID),
 		profiles:      make(map[uuid.UUID]*models.StudentProfile),
 		refreshTokens: make(map[uuid.UUID]*models.RefreshToken),
-        nextINS:      1,
+		nextINS:       1,
 	}
 }
 
@@ -61,14 +62,18 @@ func (f *fakeUserRepo) GetByINS(_ context.Context, ins string) (*models.User, er
 	return f.GetByID(context.Background(), id)
 }
 
-func (f *fakeUserRepo) ListByRole(_ context.Context, role models.UserRole) ([]models.User, error) {
+func (f *fakeUserRepo) ListByRole(_ context.Context, role models.UserRole, _ repository.ListOptions) ([]models.User, int64, error) {
 	var result []models.User
 	for _, u := range f.users {
 		if u.Role == role {
 			result = append(result, *u)
 		}
 	}
-	return result, nil
+	return result, int64(len(result)), nil
+}
+
+func (f *fakeUserRepo) ListDeletedByRole(context.Context, models.UserRole, repository.ListOptions) ([]models.User, int64, error) {
+	return nil, 0, nil
 }
 
 func (f *fakeUserRepo) Update(_ context.Context, _ *models.User) error { return nil }
@@ -87,10 +92,19 @@ func (f *fakeUserRepo) UpsertRefreshToken(_ context.Context, token *models.Refre
 	return nil
 }
 
+func (f *fakeUserRepo) DeleteRefreshToken(_ context.Context, userID uuid.UUID) error {
+	delete(f.refreshTokens, userID)
+	return nil
+}
+
+func (f *fakeUserRepo) SoftDelete(context.Context, uuid.UUID) error { return nil }
+
+func (f *fakeUserRepo) Restore(context.Context, uuid.UUID) error { return nil }
+
 func (f *fakeUserRepo) NextINS(context.Context) (string, error) {
-    value := f.nextINS
-    f.nextINS++
-    return fmt.Sprintf("%08d", value), nil
+	value := f.nextINS
+	f.nextINS++
+	return fmt.Sprintf("%08d", value), nil
 }
 
 func TestAuthServiceLoginByINS(t *testing.T) {
@@ -163,5 +177,58 @@ func TestAuthServiceRefresh(t *testing.T) {
 	}
 	if refreshResp.AccessToken == loginResp.AccessToken {
 		t.Fatal("expected new access token to differ")
+	}
+}
+
+func TestAuthServiceChangePassword(t *testing.T) {
+	repo := newFakeUserRepo()
+	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
+	ins := "00000011"
+	oldPassword := "OldPassword1!"
+	hash, _ := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleTeacher,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Cory",
+		LastName:     "Change",
+	}
+	if err := repo.Create(context.Background(), user); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	err := svc.ChangePassword(context.Background(), user.ID, reqdto.ChangePasswordRequest{
+		CurrentPassword: oldPassword,
+		NewPassword:     "NewPassword2!",
+	})
+	if err != nil {
+		t.Fatalf("change password failed: %v", err)
+	}
+	updated, _ := repo.GetByID(context.Background(), user.ID)
+	if bcrypt.CompareHashAndPassword([]byte(updated.PasswordHash), []byte("NewPassword2!")) != nil {
+		t.Fatal("expected password to be updated")
+	}
+}
+
+func TestAuthServiceChangePasswordInvalidCurrent(t *testing.T) {
+	repo := newFakeUserRepo()
+	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
+	ins := "00000012"
+	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass!"), bcrypt.DefaultCost)
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleStudent,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Ina",
+		LastName:     "Invalid",
+	}
+	repo.Create(context.Background(), user)
+	err := svc.ChangePassword(context.Background(), user.ID, reqdto.ChangePasswordRequest{
+		CurrentPassword: "WrongPass",
+		NewPassword:     "DoesNotMatter1!",
+	})
+	if !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected ErrInvalidCredentials, got %v", err)
 	}
 }

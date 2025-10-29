@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ import (
 	"gradeflow/internal/middleware"
 	"gradeflow/internal/repository"
 	"gradeflow/internal/service"
+	"gradeflow/pkg/httpx"
 )
 
 // ensure swagger picks up response types without unused import warnings
@@ -39,6 +41,7 @@ func (c *AuthController) RegisterPublicRoutes(rg *gin.RouterGroup) {
 // RegisterPrivateRoutes binds authenticated routes.
 func (c *AuthController) RegisterPrivateRoutes(rg *gin.RouterGroup) {
 	rg.GET("/me", c.me)
+	rg.PATCH("/password", c.changePassword)
 }
 
 // loginByINS godoc
@@ -49,20 +52,21 @@ func (c *AuthController) RegisterPrivateRoutes(rg *gin.RouterGroup) {
 // @Produce      json
 // @Param        payload  body      request.INSLoginRequest  true  "Credentials"
 // @Success      200      {object}  response.AuthResponse
-// @Failure      401      {object}  gin.H
+// @Failure      400      {object}  response.ErrorResponse
+// @Failure      401      {object}  response.ErrorResponse
 // @Router       /auth/login/ins [post]
 func (c *AuthController) loginByINS(ctx *gin.Context) {
 	var payload reqdto.INSLoginRequest
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 		return
 	}
 	resp, err := c.auth.LoginByINS(ctx.Request.Context(), payload)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_credentials", err.Error(), nil)
 		return
 	}
-	ctx.JSON(http.StatusOK, resp)
+	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
 // loginAdmin godoc
@@ -73,20 +77,21 @@ func (c *AuthController) loginByINS(ctx *gin.Context) {
 // @Produce      json
 // @Param        payload  body      request.AdminLoginRequest  true  "Credentials"
 // @Success      200      {object}  response.AuthResponse
-// @Failure      401      {object}  gin.H
+// @Failure      400      {object}  response.ErrorResponse
+// @Failure      401      {object}  response.ErrorResponse
 // @Router       /auth/login/admin [post]
 func (c *AuthController) loginAdmin(ctx *gin.Context) {
 	var payload reqdto.AdminLoginRequest
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 		return
 	}
 	resp, err := c.auth.LoginAdmin(ctx.Request.Context(), payload)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_credentials", err.Error(), nil)
 		return
 	}
-	ctx.JSON(http.StatusOK, resp)
+	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
 // refresh godoc
@@ -97,20 +102,52 @@ func (c *AuthController) loginAdmin(ctx *gin.Context) {
 // @Produce      json
 // @Param        payload  body      request.RefreshTokenRequest  true  "Refresh token"
 // @Success      200      {object}  response.AuthResponse
-// @Failure      401      {object}  gin.H
+// @Failure      400      {object}  response.ErrorResponse
+// @Failure      401      {object}  response.ErrorResponse
 // @Router       /auth/refresh [post]
 func (c *AuthController) refresh(ctx *gin.Context) {
 	var payload reqdto.RefreshTokenRequest
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 		return
 	}
 	resp, err := c.auth.Refresh(ctx.Request.Context(), payload)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_credentials", err.Error(), nil)
 		return
 	}
-	ctx.JSON(http.StatusOK, resp)
+	httpx.WriteData(ctx, http.StatusOK, resp)
+}
+
+// changePassword godoc
+// @Summary      Change password
+// @Security     BearerAuth
+// @Tags         Auth
+// @Accept       json
+// @Param        payload  body      request.ChangePasswordRequest  true  "Password change payload"
+// @Success      204
+// @Failure      400      {object}  response.ErrorResponse
+// @Failure      401      {object}  response.ErrorResponse
+// @Router       /auth/password [patch]
+func (c *AuthController) changePassword(ctx *gin.Context) {
+	userID, ok := c.currentUserID(ctx)
+	if !ok {
+		return
+	}
+	var payload reqdto.ChangePasswordRequest
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		return
+	}
+	if err := c.auth.ChangePassword(ctx.Request.Context(), userID, payload); err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			httpx.WriteError(ctx, http.StatusBadRequest, "invalid_credentials", "current password is incorrect", nil)
+			return
+		}
+		httpx.WriteError(ctx, http.StatusBadRequest, "password_change_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteNoContent(ctx)
 }
 
 // me returns authenticated user profile summary.
@@ -119,30 +156,19 @@ func (c *AuthController) refresh(ctx *gin.Context) {
 // @Tags         Auth
 // @Produce      json
 // @Success      200      {object}  response.UserSummary
-// @Failure      401      {object}  gin.H
+// @Failure      401      {object}  response.ErrorResponse
 // @Router       /auth/me [get]
 func (c *AuthController) me(ctx *gin.Context) {
-	val, exists := ctx.Get(middleware.ContextUserIDKey)
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "missing user"})
-		return
-	}
-	userIDStr, ok := val.(string)
+	userID, ok := c.currentUserID(ctx)
 	if !ok {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user context"})
-		return
-	}
-	userID, err := uuidFromString(userIDStr)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id"})
 		return
 	}
 	user, err := c.users.GetByID(ctx.Request.Context(), userID)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		httpx.WriteError(ctx, http.StatusUnauthorized, "user_not_found", "user not found", nil)
 		return
 	}
-	ctx.JSON(http.StatusOK, response.UserSummary{
+	httpx.WriteData(ctx, http.StatusOK, response.UserSummary{
 		ID:         user.ID.String(),
 		Role:       user.Role,
 		INS:        user.INS,
@@ -152,6 +178,25 @@ func (c *AuthController) me(ctx *gin.Context) {
 		MiddleName: user.MiddleName,
 		AvatarURL:  user.AvatarURL,
 	})
+}
+
+func (c *AuthController) currentUserID(ctx *gin.Context) (uuid.UUID, bool) {
+	val, exists := ctx.Get(middleware.ContextUserIDKey)
+	if !exists {
+		httpx.WriteError(ctx, http.StatusUnauthorized, "missing_user", "user context missing", nil)
+		return uuid.UUID{}, false
+	}
+	userIDStr, ok := val.(string)
+	if !ok {
+		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_context", "invalid user context", nil)
+		return uuid.UUID{}, false
+	}
+	userID, err := uuidFromString(userIDStr)
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_context", "invalid user identifier", nil)
+		return uuid.UUID{}, false
+	}
+	return userID, true
 }
 
 func uuidFromString(id string) (uuid.UUID, error) {

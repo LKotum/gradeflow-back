@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -12,6 +16,8 @@ import (
 	respdto "gradeflow/internal/domain/dto/response"
 	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
+	"gradeflow/pkg/cache"
+	"gradeflow/pkg/logger"
 )
 
 // DeanService exposes dean office orchestration use-cases.
@@ -21,107 +27,308 @@ type DeanService struct {
 	subjects repository.SubjectRepository
 	sessions repository.SessionRepository
 	grades   repository.GradeRepository
+	cache    cache.Store
 }
 
 // NewDeanService constructs the service.
-func NewDeanService(users repository.UserRepository, groups repository.GroupRepository, subjects repository.SubjectRepository, sessions repository.SessionRepository, grades repository.GradeRepository) *DeanService {
+func NewDeanService(users repository.UserRepository, groups repository.GroupRepository, subjects repository.SubjectRepository, sessions repository.SessionRepository, grades repository.GradeRepository, cacheStore cache.Store) *DeanService {
+	if cacheStore == nil {
+		cacheStore = cache.NewNoop()
+	}
 	return &DeanService{
 		users:    users,
 		groups:   groups,
 		subjects: subjects,
 		sessions: sessions,
 		grades:   grades,
+		cache:    cacheStore,
+	}
+}
+
+func (s *DeanService) cacheKey(parts ...string) string {
+	return strings.Join(append([]string{"dean"}, parts...), ":")
+}
+
+func deanSanitizeQuery(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return url.QueryEscape(strings.TrimSpace(*value))
+}
+
+func (s *DeanService) invalidatePrefix(ctx context.Context, parts ...string) {
+	prefix := s.cacheKey(parts...)
+	if err := s.cache.InvalidatePrefix(ctx, prefix); err != nil {
+		logger.Warn("cache invalidate failed", "prefix", prefix, "error", err)
+	}
+}
+
+func uuidFromStringPtr(value *string) (*uuid.UUID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(trimmed)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
+func userProfileFromModel(u *models.User) respdto.UserProfile {
+	if u == nil {
+		return respdto.UserProfile{}
+	}
+	return respdto.UserProfile{
+		ID:         u.ID.String(),
+		FirstName:  u.FirstName,
+		LastName:   u.LastName,
+		MiddleName: u.MiddleName,
+		Email:      u.Email,
+		INS:        u.INS,
+		AvatarURL:  u.AvatarURL,
+		Role:       string(u.Role),
 	}
 }
 
 // CreateGroup provisions a new student group.
 func (s *DeanService) CreateGroup(ctx context.Context, payload reqdto.CreateGroupRequest) (*respdto.GroupSummary, error) {
-    group := &models.Group{
-        Base:        models.Base{ID: uuid.New()},
-        Name:        payload.Name,
-        Description: payload.Description,
-    }
+	group := &models.Group{
+		Base:        models.Base{ID: uuid.New()},
+		Name:        payload.Name,
+		Description: payload.Description,
+	}
 	if err := s.groups.Create(ctx, group); err != nil {
 		return nil, fmt.Errorf("create group: %w", err)
 	}
+	s.invalidatePrefix(ctx, "groups")
 	return &respdto.GroupSummary{ID: group.ID.String(), Name: group.Name, Description: group.Description}, nil
 }
 
 // ListGroups returns available groups.
-func (s *DeanService) ListGroups(ctx context.Context) ([]respdto.GroupSummary, error) {
-	groups, err := s.groups.List(ctx)
+func (s *DeanService) ListGroups(ctx context.Context, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.GroupSummary], error) {
+	opts.Normalize(100)
+	cacheKey := s.cacheKey("groups", "list", strconv.Itoa(opts.Limit), strconv.Itoa(opts.Offset), deanSanitizeQuery(opts.Search))
+	var cached respdto.Paginated[respdto.GroupSummary]
+	if ok, err := s.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return &cached, nil
+	} else if err != nil {
+		logger.Warn("cache get failed", "key", cacheKey, "error", err)
+	}
+	listOpts := repository.ListOptions{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+		Search: opts.Search,
+	}
+	groups, total, err := s.groups.List(ctx, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
-	resp := make([]respdto.GroupSummary, 0, len(groups))
+	items := make([]respdto.GroupSummary, 0, len(groups))
 	for _, g := range groups {
-		resp = append(resp, respdto.GroupSummary{ID: g.ID.String(), Name: g.Name, Description: g.Description})
+		items = append(items, respdto.GroupSummary{ID: g.ID.String(), Name: g.Name, Description: g.Description})
 	}
-	return resp, nil
+	result := &respdto.Paginated[respdto.GroupSummary]{
+		Data: items,
+		Meta: respdto.PageMeta{
+			Limit:  opts.Limit,
+			Offset: opts.Offset,
+			Total:  int(total),
+		},
+	}
+	if err := s.cache.Set(ctx, cacheKey, result, 0); err != nil {
+		logger.Warn("cache set failed", "key", cacheKey, "error", err)
+	}
+	return result, nil
+}
+
+// UpdateGroup modifies group metadata.
+func (s *DeanService) UpdateGroup(ctx context.Context, groupID uuid.UUID, payload reqdto.UpdateGroupRequest) (*respdto.GroupSummary, error) {
+	group, err := s.groups.GetByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("load group: %w", err)
+	}
+	if payload.Name != nil {
+		group.Name = *payload.Name
+	}
+	if payload.Description != nil {
+		group.Description = payload.Description
+	}
+	if err := s.groups.Update(ctx, group); err != nil {
+		return nil, fmt.Errorf("update group: %w", err)
+	}
+	s.invalidatePrefix(ctx, "groups")
+	return &respdto.GroupSummary{ID: group.ID.String(), Name: group.Name, Description: group.Description}, nil
+}
+
+// DeleteGroup soft deletes a group.
+func (s *DeanService) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {
+	if s.sessions != nil {
+		if err := s.sessions.DeleteByGroup(ctx, groupID); err != nil {
+			return fmt.Errorf("delete group sessions: %w", err)
+		}
+	}
+	if s.grades != nil {
+		if err := s.grades.DeleteByGroup(ctx, groupID); err != nil {
+			return fmt.Errorf("delete group grades: %w", err)
+		}
+	}
+	if err := s.groups.SoftDelete(ctx, groupID); err != nil {
+		return fmt.Errorf("delete group: %w", err)
+	}
+	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "subjects")
+	return nil
+}
+
+// RestoreGroup restores a soft deleted group.
+func (s *DeanService) RestoreGroup(ctx context.Context, groupID uuid.UUID) error {
+	if err := s.groups.Restore(ctx, groupID); err != nil {
+		return fmt.Errorf("restore group: %w", err)
+	}
+	s.invalidatePrefix(ctx, "groups")
+	return nil
 }
 
 // CreateSubject registers a new subject.
 func (s *DeanService) CreateSubject(ctx context.Context, payload reqdto.CreateSubjectRequest) (*respdto.SubjectSummary, error) {
-    subject := &models.Subject{
-        Base:        models.Base{ID: uuid.New()},
-        Code:        payload.Code,
-        Name:        payload.Name,
-        Description: payload.Description,
-    }
+	subject := &models.Subject{
+		Base:        models.Base{ID: uuid.New()},
+		Code:        payload.Code,
+		Name:        payload.Name,
+		Description: payload.Description,
+	}
 	if err := s.subjects.Create(ctx, subject); err != nil {
 		return nil, fmt.Errorf("create subject: %w", err)
 	}
+	s.invalidatePrefix(ctx, "subjects")
 	return &respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description}, nil
 }
 
 // ListSubjects returns subjects.
-func (s *DeanService) ListSubjects(ctx context.Context) ([]respdto.SubjectSummary, error) {
-	subjects, err := s.subjects.List(ctx)
+func (s *DeanService) ListSubjects(ctx context.Context, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.SubjectSummary], error) {
+	opts.Normalize(100)
+	cacheKey := s.cacheKey("subjects", "list", strconv.Itoa(opts.Limit), strconv.Itoa(opts.Offset), deanSanitizeQuery(opts.Search))
+	var cached respdto.Paginated[respdto.SubjectSummary]
+	if ok, err := s.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return &cached, nil
+	} else if err != nil {
+		logger.Warn("cache get failed", "key", cacheKey, "error", err)
+	}
+	listOpts := repository.ListOptions{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+		Search: opts.Search,
+	}
+	subjects, total, err := s.subjects.List(ctx, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("list subjects: %w", err)
 	}
-	resp := make([]respdto.SubjectSummary, 0, len(subjects))
+	items := make([]respdto.SubjectSummary, 0, len(subjects))
 	for _, subj := range subjects {
-		resp = append(resp, respdto.SubjectSummary{ID: subj.ID.String(), Code: subj.Code, Name: subj.Name, Description: subj.Description})
+		items = append(items, respdto.SubjectSummary{ID: subj.ID.String(), Code: subj.Code, Name: subj.Name, Description: subj.Description})
 	}
-	return resp, nil
+	result := &respdto.Paginated[respdto.SubjectSummary]{
+		Data: items,
+		Meta: respdto.PageMeta{
+			Limit:  opts.Limit,
+			Offset: opts.Offset,
+			Total:  int(total),
+		},
+	}
+	if err := s.cache.Set(ctx, cacheKey, result, 0); err != nil {
+		logger.Warn("cache set failed", "key", cacheKey, "error", err)
+	}
+	return result, nil
+}
+
+// UpdateSubject modifies subject metadata.
+func (s *DeanService) UpdateSubject(ctx context.Context, subjectID uuid.UUID, payload reqdto.UpdateSubjectRequest) (*respdto.SubjectSummary, error) {
+	subject, err := s.subjects.GetByID(ctx, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("load subject: %w", err)
+	}
+	if payload.Code != nil {
+		subject.Code = *payload.Code
+	}
+	if payload.Name != nil {
+		subject.Name = *payload.Name
+	}
+	if payload.Description != nil {
+		subject.Description = payload.Description
+	}
+	if err := s.subjects.Update(ctx, subject); err != nil {
+		return nil, fmt.Errorf("update subject: %w", err)
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	return &respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description}, nil
+}
+
+// DeleteSubject soft deletes a subject.
+func (s *DeanService) DeleteSubject(ctx context.Context, subjectID uuid.UUID) error {
+	if s.sessions != nil {
+		if err := s.sessions.DeleteBySubject(ctx, subjectID); err != nil {
+			return fmt.Errorf("delete subject sessions: %w", err)
+		}
+	}
+	if s.grades != nil {
+		if err := s.grades.DeleteBySubject(ctx, subjectID); err != nil {
+			return fmt.Errorf("delete subject grades: %w", err)
+		}
+	}
+	if err := s.subjects.SoftDelete(ctx, subjectID); err != nil {
+		return fmt.Errorf("delete subject: %w", err)
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	return nil
+}
+
+// RestoreSubject restores a soft deleted subject.
+func (s *DeanService) RestoreSubject(ctx context.Context, subjectID uuid.UUID) error {
+	if err := s.subjects.Restore(ctx, subjectID); err != nil {
+		return fmt.Errorf("restore subject: %w", err)
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	return nil
 }
 
 // CreateTeacher provisions teacher account.
 func (s *DeanService) CreateTeacher(ctx context.Context, payload reqdto.CreateTeacherRequest) (*respdto.UserProfile, error) {
-    passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-    if err != nil {
-        return nil, fmt.Errorf("hash password: %w", err)
-    }
-    ins := payload.INS
-    if ins == "" {
-        generated, err := s.users.NextINS(ctx)
-        if err != nil {
-            return nil, fmt.Errorf("generate INS: %w", err)
-        }
-        ins = generated
-    }
-    user := &models.User{
-        Base:         models.Base{ID: uuid.New()},
-        Role:         models.UserRoleTeacher,
-        INS:          &ins,
-        Email:        payload.Email,
-        FirstName:    payload.FirstName,
-        LastName:     payload.LastName,
-        MiddleName:   payload.MiddleName,
-        PasswordHash: string(passwordHash),
-    }
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+	ins, err := s.users.NextINS(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("generate INS: %w", err)
+	}
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleTeacher,
+		INS:          &ins,
+		Email:        payload.Email,
+		FirstName:    payload.FirstName,
+		LastName:     payload.LastName,
+		MiddleName:   payload.MiddleName,
+		PasswordHash: string(passwordHash),
+	}
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create teacher user: %w", err)
 	}
-    if err := s.users.AttachTeacherProfile(ctx, &models.TeacherProfile{
-        Base:    models.Base{ID: uuid.New()},
-        UserID:  user.ID,
-        Title:   payload.Title,
-        Bio:     payload.Bio,
-    }); err != nil {
-        return nil, fmt.Errorf("create teacher profile: %w", err)
-    }
+	if err := s.users.AttachTeacherProfile(ctx, &models.TeacherProfile{
+		Base:   models.Base{ID: uuid.New()},
+		UserID: user.ID,
+		Title:  payload.Title,
+		Bio:    payload.Bio,
+	}); err != nil {
+		return nil, fmt.Errorf("create teacher profile: %w", err)
+	}
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "users")
 	return &respdto.UserProfile{
 		ID:         user.ID.String(),
 		FirstName:  user.FirstName,
@@ -134,14 +341,27 @@ func (s *DeanService) CreateTeacher(ctx context.Context, payload reqdto.CreateTe
 }
 
 // ListTeachers returns teacher summaries.
-func (s *DeanService) ListTeachers(ctx context.Context) ([]respdto.UserProfile, error) {
-	teachers, err := s.users.ListByRole(ctx, models.UserRoleTeacher)
+func (s *DeanService) ListTeachers(ctx context.Context, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.UserProfile], error) {
+	opts.Normalize(100)
+	cacheKey := s.cacheKey("teachers", "list", strconv.Itoa(opts.Limit), strconv.Itoa(opts.Offset), deanSanitizeQuery(opts.Search))
+	var cached respdto.Paginated[respdto.UserProfile]
+	if ok, err := s.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return &cached, nil
+	} else if err != nil {
+		logger.Warn("cache get failed", "key", cacheKey, "error", err)
+	}
+	listOpts := repository.ListOptions{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+		Search: opts.Search,
+	}
+	teachers, total, err := s.users.ListByRole(ctx, models.UserRoleTeacher, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("list teachers: %w", err)
 	}
-	resp := make([]respdto.UserProfile, 0, len(teachers))
+	items := make([]respdto.UserProfile, 0, len(teachers))
 	for _, t := range teachers {
-		resp = append(resp, respdto.UserProfile{
+		items = append(items, respdto.UserProfile{
 			ID:         t.ID.String(),
 			FirstName:  t.FirstName,
 			LastName:   t.LastName,
@@ -152,41 +372,92 @@ func (s *DeanService) ListTeachers(ctx context.Context) ([]respdto.UserProfile, 
 			Role:       string(t.Role),
 		})
 	}
-	return resp, nil
+	result := &respdto.Paginated[respdto.UserProfile]{
+		Data: items,
+		Meta: respdto.PageMeta{
+			Limit:  opts.Limit,
+			Offset: opts.Offset,
+			Total:  int(total),
+		},
+	}
+	if err := s.cache.Set(ctx, cacheKey, result, 0); err != nil {
+		logger.Warn("cache set failed", "key", cacheKey, "error", err)
+	}
+	return result, nil
+}
+
+// UpdateTeacher modifies teacher profile and metadata.
+func (s *DeanService) UpdateTeacher(ctx context.Context, teacherID uuid.UUID, payload reqdto.UpdateTeacherRequest) (*respdto.UserProfile, error) {
+	user, err := s.users.GetByID(ctx, teacherID)
+	if err != nil {
+		return nil, fmt.Errorf("load teacher: %w", err)
+	}
+	if user.Role != models.UserRoleTeacher {
+		return nil, errors.New("user is not a teacher")
+	}
+	if payload.Email != nil {
+		user.Email = payload.Email
+	}
+	if payload.FirstName != nil {
+		user.FirstName = *payload.FirstName
+	}
+	if payload.LastName != nil {
+		user.LastName = *payload.LastName
+	}
+	if payload.MiddleName != nil {
+		user.MiddleName = payload.MiddleName
+	}
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("update teacher user: %w", err)
+	}
+	if payload.Title != nil || payload.Bio != nil {
+		if err := s.users.AttachTeacherProfile(ctx, &models.TeacherProfile{
+			UserID: user.ID,
+			Title:  payload.Title,
+			Bio:    payload.Bio,
+		}); err != nil {
+			return nil, fmt.Errorf("update teacher profile: %w", err)
+		}
+	}
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "users")
+	profile := userProfileFromModel(user)
+	return &profile, nil
+}
+
+// DeleteTeacher performs soft delete for teacher account.
+func (s *DeanService) DeleteTeacher(ctx context.Context, teacherID uuid.UUID) error {
+	return errors.New("удаление преподавателя доступно только администратору")
 }
 
 // CreateStudent provisions student account.
 func (s *DeanService) CreateStudent(ctx context.Context, payload reqdto.CreateStudentRequest) (*respdto.UserProfile, error) {
-    passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-    if err != nil {
-        return nil, fmt.Errorf("hash password: %w", err)
-    }
-    ins := payload.INS
-    if ins == "" {
-        generated, err := s.users.NextINS(ctx)
-        if err != nil {
-            return nil, fmt.Errorf("generate INS: %w", err)
-        }
-        ins = generated
-    }
-    user := &models.User{
-        Base:         models.Base{ID: uuid.New()},
-        Role:         models.UserRoleStudent,
-        INS:          &ins,
-        Email:        payload.Email,
-        FirstName:    payload.FirstName,
-        LastName:     payload.LastName,
-        MiddleName:   payload.MiddleName,
-        PasswordHash: string(passwordHash),
-    }
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+	ins, err := s.users.NextINS(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("generate INS: %w", err)
+	}
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleStudent,
+		INS:          &ins,
+		Email:        payload.Email,
+		FirstName:    payload.FirstName,
+		LastName:     payload.LastName,
+		MiddleName:   payload.MiddleName,
+		PasswordHash: string(passwordHash),
+	}
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create student user: %w", err)
 	}
-    profile := &models.StudentProfile{
-        Base:   models.Base{ID: uuid.New()},
-        UserID: user.ID,
-        Index:  payload.Index,
-    }
+	profile := &models.StudentProfile{
+		Base:   models.Base{ID: uuid.New()},
+		UserID: user.ID,
+		Index:  fmt.Sprintf("ST-%s", ins),
+	}
 	if payload.GroupID != nil {
 		gid, err := uuid.Parse(*payload.GroupID)
 		if err != nil {
@@ -197,6 +468,8 @@ func (s *DeanService) CreateStudent(ctx context.Context, payload reqdto.CreateSt
 	if err := s.users.AttachStudentProfile(ctx, profile); err != nil {
 		return nil, fmt.Errorf("attach student profile: %w", err)
 	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "users")
 	return &respdto.UserProfile{
 		ID:         user.ID.String(),
 		FirstName:  user.FirstName,
@@ -209,14 +482,27 @@ func (s *DeanService) CreateStudent(ctx context.Context, payload reqdto.CreateSt
 }
 
 // ListStudents returns student summaries.
-func (s *DeanService) ListStudents(ctx context.Context) ([]respdto.UserProfile, error) {
-	students, err := s.users.ListByRole(ctx, models.UserRoleStudent)
+func (s *DeanService) ListStudents(ctx context.Context, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.UserProfile], error) {
+	opts.Normalize(100)
+	cacheKey := s.cacheKey("students", "list", strconv.Itoa(opts.Limit), strconv.Itoa(opts.Offset), deanSanitizeQuery(opts.Search))
+	var cached respdto.Paginated[respdto.UserProfile]
+	if ok, err := s.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return &cached, nil
+	} else if err != nil {
+		logger.Warn("cache get failed", "key", cacheKey, "error", err)
+	}
+	listOpts := repository.ListOptions{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+		Search: opts.Search,
+	}
+	students, total, err := s.users.ListByRole(ctx, models.UserRoleStudent, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("list students: %w", err)
 	}
-	resp := make([]respdto.UserProfile, 0, len(students))
+	items := make([]respdto.UserProfile, 0, len(students))
 	for _, st := range students {
-		resp = append(resp, respdto.UserProfile{
+		items = append(items, respdto.UserProfile{
 			ID:         st.ID.String(),
 			FirstName:  st.FirstName,
 			LastName:   st.LastName,
@@ -227,7 +513,80 @@ func (s *DeanService) ListStudents(ctx context.Context) ([]respdto.UserProfile, 
 			Role:       string(st.Role),
 		})
 	}
-	return resp, nil
+	result := &respdto.Paginated[respdto.UserProfile]{
+		Data: items,
+		Meta: respdto.PageMeta{
+			Limit:  opts.Limit,
+			Offset: opts.Offset,
+			Total:  int(total),
+		},
+	}
+	if err := s.cache.Set(ctx, cacheKey, result, 0); err != nil {
+		logger.Warn("cache set failed", "key", cacheKey, "error", err)
+	}
+	return result, nil
+}
+
+// UpdateStudent modifies student profile attributes.
+func (s *DeanService) UpdateStudent(ctx context.Context, studentID uuid.UUID, payload reqdto.UpdateStudentRequest) (*respdto.UserProfile, error) {
+	user, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	if user.Role != models.UserRoleStudent {
+		return nil, errors.New("user is not a student")
+	}
+	if payload.Email != nil {
+		user.Email = payload.Email
+	}
+	if payload.FirstName != nil {
+		user.FirstName = *payload.FirstName
+	}
+	if payload.LastName != nil {
+		user.LastName = *payload.LastName
+	}
+	if payload.MiddleName != nil {
+		user.MiddleName = payload.MiddleName
+	}
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("update student user: %w", err)
+	}
+
+	if payload.GroupID != nil {
+		profile := &models.StudentProfile{
+			UserID: user.ID,
+			Index:  studentIndexOrDefault(user),
+		}
+		if user.Student != nil {
+			profile.ID = user.Student.ID
+		}
+		if strings.TrimSpace(*payload.GroupID) == "" {
+			profile.GroupID = nil
+		} else {
+			groupID, err := uuid.Parse(*payload.GroupID)
+			if err != nil {
+				return nil, fmt.Errorf("parse groupId: %w", err)
+			}
+			profile.GroupID = &groupID
+		}
+		if err := s.users.AttachStudentProfile(ctx, profile); err != nil {
+			return nil, fmt.Errorf("update student profile: %w", err)
+		}
+		if user.Student != nil {
+			user.Student.GroupID = profile.GroupID
+			user.Student.Index = profile.Index
+		}
+	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "users")
+	profile := userProfileFromModel(user)
+	return &profile, nil
+}
+
+// DeleteStudent performs soft delete for student account.
+func (s *DeanService) DeleteStudent(ctx context.Context, studentID uuid.UUID) error {
+	return errors.New("удаление студента доступно только администратору")
 }
 
 // AssignTeacher connects a teacher to a subject.
@@ -236,12 +595,17 @@ func (s *DeanService) AssignTeacher(ctx context.Context, subjectID uuid.UUID, pa
 	if err != nil {
 		return fmt.Errorf("parse teacher id: %w", err)
 	}
-    assignment := &models.TeachingAssignment{
-        Base:      models.Base{ID: uuid.New()},
-        SubjectID: subjectID,
-        TeacherID: teacherID,
-    }
-	return s.subjects.AssignTeacher(ctx, assignment)
+	assignment := &models.TeachingAssignment{
+		Base:      models.Base{ID: uuid.New()},
+		SubjectID: subjectID,
+		TeacherID: teacherID,
+	}
+	if err := s.subjects.AssignTeacher(ctx, assignment); err != nil {
+		return err
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "teachers")
+	return nil
 }
 
 // AttachGroup links group to subject.
@@ -250,20 +614,67 @@ func (s *DeanService) AttachGroup(ctx context.Context, subjectID uuid.UUID, payl
 	if err != nil {
 		return fmt.Errorf("parse group id: %w", err)
 	}
-    link := &models.SubjectGroup{
-        Base:      models.Base{ID: uuid.New()},
-        SubjectID: subjectID,
-        GroupID:   groupID,
-    }
-	return s.subjects.AttachGroup(ctx, link)
+	link := &models.SubjectGroup{
+		Base:      models.Base{ID: uuid.New()},
+		SubjectID: subjectID,
+		GroupID:   groupID,
+	}
+	if err := s.subjects.AttachGroup(ctx, link); err != nil {
+		return err
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "groups")
+	return nil
 }
 
 // AssignStudentToGroup moves student into a group.
 func (s *DeanService) AssignStudentToGroup(ctx context.Context, groupID uuid.UUID, payload reqdto.AssignStudentToGroupRequest) error {
-	studentID, err := uuid.Parse(payload.StudentID)
-	if err != nil {
-		return fmt.Errorf("parse student id: %w", err)
+	if len(payload.StudentIDs) == 0 {
+		return errors.New("studentIds required")
 	}
+	seen := make(map[uuid.UUID]struct{})
+	for _, id := range payload.StudentIDs {
+		studentID, err := uuid.Parse(id)
+		if err != nil {
+			return fmt.Errorf("parse student id: %w", err)
+		}
+		if _, dup := seen[studentID]; dup {
+			continue
+		}
+		seen[studentID] = struct{}{}
+
+		user, err := s.users.GetByID(ctx, studentID)
+		if err != nil {
+			return fmt.Errorf("load student: %w", err)
+		}
+		if user.Student == nil {
+			return errors.New("user has no student profile")
+		}
+		index := studentIndexOrDefault(user)
+		profile := &models.StudentProfile{
+			UserID:  user.ID,
+			Index:   index,
+			GroupID: &groupID,
+		}
+		if user.Student.ID != uuid.Nil {
+			profile.ID = user.Student.ID
+		}
+		if err := s.users.AttachStudentProfile(ctx, profile); err != nil {
+			return err
+		}
+		if user.Student != nil {
+			user.Student.GroupID = &groupID
+			user.Student.Index = profile.Index
+		}
+	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "users")
+	return nil
+}
+
+// DetachStudentFromGroup removes student assignment from a group.
+func (s *DeanService) DetachStudentFromGroup(ctx context.Context, groupID, studentID uuid.UUID) error {
 	user, err := s.users.GetByID(ctx, studentID)
 	if err != nil {
 		return fmt.Errorf("load student: %w", err)
@@ -273,24 +684,40 @@ func (s *DeanService) AssignStudentToGroup(ctx context.Context, groupID uuid.UUI
 	}
 	profile := &models.StudentProfile{
 		UserID:  user.ID,
-		Index:   user.Student.Index,
-		GroupID: &groupID,
+		Index:   studentIndexOrDefault(user),
+		GroupID: nil,
 	}
 	if user.Student.ID != uuid.Nil {
 		profile.ID = user.Student.ID
 	}
-	return s.users.AttachStudentProfile(ctx, profile)
+	if err := s.users.AttachStudentProfile(ctx, profile); err != nil {
+		return fmt.Errorf("detach student profile: %w", err)
+	}
+	if user.Student != nil {
+		user.Student.GroupID = nil
+		user.Student.Index = profile.Index
+	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "users")
+	return nil
 }
 
-// ScheduleSession creates a lesson for subject/group/teacher.
-func (s *DeanService) ScheduleSession(ctx context.Context, payload reqdto.ScheduleSessionRequest) (*respdto.SessionSummary, error) {
+// DetachTeacherFromSubject removes teacher assignment from subject.
+func (s *DeanService) DetachTeacherFromSubject(ctx context.Context, subjectID, teacherID uuid.UUID) error {
+	if err := s.subjects.RemoveTeacherAssignment(ctx, teacherID, subjectID); err != nil {
+		return fmt.Errorf("remove teacher assignment: %w", err)
+	}
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "subjects")
+	return nil
+}
+
+// ScheduleSession creates lesson slots for one subject and multiple groups.
+func (s *DeanService) ScheduleSession(ctx context.Context, payload reqdto.ScheduleSessionRequest) ([]respdto.SessionSummary, error) {
 	subjectID, err := uuid.Parse(payload.SubjectID)
 	if err != nil {
 		return nil, fmt.Errorf("parse subject id: %w", err)
-	}
-	groupID, err := uuid.Parse(payload.GroupID)
-	if err != nil {
-		return nil, fmt.Errorf("parse group id: %w", err)
 	}
 	teacherID, err := uuid.Parse(payload.TeacherID)
 	if err != nil {
@@ -310,31 +737,85 @@ func (s *DeanService) ScheduleSession(ctx context.Context, payload reqdto.Schedu
 	if !valid {
 		return nil, errors.New("teacher not assigned to subject")
 	}
-    session := &models.ClassSession{
-        Base:      models.Base{ID: uuid.New()},
-        SubjectID: subjectID,
-        GroupID:   groupID,
-        TeacherID: teacherID,
-        StartsAt:  payload.StartsAt,
-        EndsAt:    payload.EndsAt,
-        Topic:     payload.Topic,
-    }
-	if err := s.sessions.Create(ctx, session); err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
+	if len(payload.GroupIDs) == 0 {
+		return nil, errors.New("groupIds required")
 	}
-	return &respdto.SessionSummary{
-		ID:        session.ID.String(),
-		StartsAt:  session.StartsAt,
-		EndsAt:    session.EndsAt,
-		Topic:     session.Topic,
-		SubjectID: session.SubjectID.String(),
-		GroupID:   session.GroupID.String(),
-	}, nil
+	if payload.Slot < 1 || payload.Slot > 6 {
+		return nil, errors.New("slot must be between 1 and 6")
+	}
+	slotDuration := 90 * time.Minute
+	startBase := time.Date(payload.Date.Year(), payload.Date.Month(), payload.Date.Day(), 9, 0, 0, 0, payload.Date.Location())
+	startsAt := startBase.Add(time.Duration(payload.Slot-1) * slotDuration)
+	endsAt := startsAt.Add(slotDuration)
+
+	summaries := make([]respdto.SessionSummary, 0, len(payload.GroupIDs))
+	for _, gidStr := range payload.GroupIDs {
+		groupID, err := uuid.Parse(gidStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse group id: %w", err)
+		}
+		end := endsAt
+		session := &models.ClassSession{
+			Base:      models.Base{ID: uuid.New()},
+			SubjectID: subjectID,
+			GroupID:   groupID,
+			TeacherID: teacherID,
+			StartsAt:  startsAt,
+			EndsAt:    &end,
+			Topic:     payload.Topic,
+		}
+		if err := s.sessions.Create(ctx, session); err != nil {
+			return nil, fmt.Errorf("create session: %w", err)
+		}
+		summaries = append(summaries, respdto.SessionSummary{
+			ID:        session.ID.String(),
+			StartsAt:  session.StartsAt,
+			EndsAt:    session.EndsAt,
+			Topic:     session.Topic,
+			SubjectID: subjectID.String(),
+			GroupID:   session.GroupID.String(),
+		})
+	}
+	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "teachers")
+	return summaries, nil
+}
+
+// Schedule returns sessions filtered by subject, group or teacher.
+func (s *DeanService) Schedule(ctx context.Context, query reqdto.ScheduleQuery) ([]respdto.ScheduleEntry, error) {
+	if s.sessions == nil {
+		return []respdto.ScheduleEntry{}, nil
+	}
+	filter := repository.SessionFilter{}
+	if id, err := uuidFromStringPtr(query.SubjectID); err != nil {
+		return nil, fmt.Errorf("parse subjectId: %w", err)
+	} else if id != nil {
+		filter.SubjectID = id
+	}
+	if id, err := uuidFromStringPtr(query.GroupID); err != nil {
+		return nil, fmt.Errorf("parse groupId: %w", err)
+	} else if id != nil {
+		filter.GroupID = id
+	}
+	if id, err := uuidFromStringPtr(query.TeacherID); err != nil {
+		return nil, fmt.Errorf("parse teacherId: %w", err)
+	} else if id != nil {
+		filter.TeacherID = id
+	}
+	filter.From = query.From
+	filter.To = query.To
+
+	sessions, err := s.sessions.ListByFilter(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	return buildScheduleEntries(sessions), nil
 }
 
 // GroupRanking composes ranking by average grade.
 func (s *DeanService) GroupRanking(ctx context.Context) (*respdto.GroupRankingResponse, error) {
-	groups, err := s.groups.List(ctx)
+	groups, _, err := s.groups.List(ctx, repository.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}

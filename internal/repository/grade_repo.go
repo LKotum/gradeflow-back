@@ -13,6 +13,10 @@ type GradeRepository interface {
 	Upsert(ctx context.Context, grade *models.Grade) error
 	Update(ctx context.Context, grade *models.Grade) error
 	Delete(ctx context.Context, gradeID uuid.UUID) error
+	DeleteByStudent(ctx context.Context, studentID uuid.UUID) error
+	DeleteByTeacher(ctx context.Context, teacherID uuid.UUID) error
+	DeleteByGroup(ctx context.Context, groupID uuid.UUID) error
+	DeleteBySubject(ctx context.Context, subjectID uuid.UUID) error
 	GetByID(ctx context.Context, gradeID uuid.UUID) (*models.Grade, error)
 	GetBySessionAndStudent(ctx context.Context, sessionID, studentID uuid.UUID) (*models.Grade, error)
 	ListBySubjectAndGroup(ctx context.Context, subjectID, groupID uuid.UUID) ([]models.Grade, error)

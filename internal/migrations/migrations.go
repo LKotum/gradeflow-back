@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"log"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -121,13 +122,24 @@ func Run(ctx context.Context, db *gorm.DB) (*BootstrapAdmin, error) {
 }
 
 func ensureSystemAdmin(ctx context.Context, db *gorm.DB) (*BootstrapAdmin, error) {
-
-	var count int64
-	if err := db.WithContext(ctx).Model(&models.User{}).Where("role = ?", models.UserRoleAdmin).Count(&count).Error; err != nil {
-		return nil, err
-	}
-	if count > 0 {
+	var existing models.User
+	err := db.WithContext(ctx).Unscoped().
+		Where("role = ?", models.UserRoleAdmin).
+		First(&existing).Error
+	if err == nil {
+		// Ensure previously soft-deleted admin is restored.
+		if existing.DeletedAt.Valid {
+			if err := db.WithContext(ctx).Unscoped().
+				Model(&models.User{}).
+				Where("id = ?", existing.ID).
+				Update("deleted_at", nil).Error; err != nil {
+				return nil, err
+			}
+		}
 		return nil, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 
 	password, err := generatePassword()
@@ -139,10 +151,7 @@ func ensureSystemAdmin(ctx context.Context, db *gorm.DB) (*BootstrapAdmin, error
 		return nil, err
 	}
 
-	var rawINS string
-	if err := db.WithContext(ctx).Raw(`SELECT lpad(nextval('ins_sequence')::text, 8, '0')`).Scan(&rawINS).Error; err != nil {
-		return nil, err
-	}
+	rawINS := "00000000"
 	user := models.User{
 		Base:         models.Base{ID: uuid.New()},
 		Role:         models.UserRoleAdmin,

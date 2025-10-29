@@ -39,6 +39,30 @@ func (r *GradeRepositoryGorm) Delete(ctx context.Context, gradeID uuid.UUID) err
 	return r.db.WithContext(ctx).Delete(&models.Grade{}, "id = ?", gradeID).Error
 }
 
+func (r *GradeRepositoryGorm) DeleteByStudent(ctx context.Context, studentID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("student_id = ?", studentID).
+		Delete(&models.Grade{}).Error
+}
+
+func (r *GradeRepositoryGorm) DeleteByTeacher(ctx context.Context, teacherID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("teacher_id = ?", teacherID).
+		Delete(&models.Grade{}).Error
+}
+
+func (r *GradeRepositoryGorm) DeleteByGroup(ctx context.Context, groupID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("session_id IN (SELECT id FROM class_sessions WHERE group_id = ?)", groupID).
+		Delete(&models.Grade{}).Error
+}
+
+func (r *GradeRepositoryGorm) DeleteBySubject(ctx context.Context, subjectID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("subject_id = ?", subjectID).
+		Delete(&models.Grade{}).Error
+}
+
 func (r *GradeRepositoryGorm) GetByID(ctx context.Context, gradeID uuid.UUID) (*models.Grade, error) {
 	var grade models.Grade
 	if err := r.db.WithContext(ctx).First(&grade, "id = ?", gradeID).Error; err != nil {
