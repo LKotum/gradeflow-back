@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +33,11 @@ func (r *deanUserRepo) Create(_ context.Context, user *models.User) error {
 }
 
 func (r *deanUserRepo) GetByID(_ context.Context, id uuid.UUID) (*models.User, error) {
-	return r.users[id], nil
+	user, ok := r.users[id]
+	if !ok {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
 }
 
 func (r *deanUserRepo) GetByINS(context.Context, string) (*models.User, error) { return nil, nil }
@@ -134,7 +140,60 @@ func (noopSubjectRepo) ListSubjectGroups(context.Context, uuid.UUID) ([]models.S
 func (noopSubjectRepo) RemoveTeacherAssignments(context.Context, uuid.UUID) error   { return nil }
 func (noopSubjectRepo) RemoveAssignmentsBySubject(context.Context, uuid.UUID) error { return nil }
 func (noopSubjectRepo) RemoveGroupLinks(context.Context, uuid.UUID) error           { return nil }
-func (noopSubjectRepo) RemoveTeacherAssignment(context.Context, uuid.UUID, uuid.UUID) error { return nil }
+func (noopSubjectRepo) RemoveTeacherAssignment(context.Context, uuid.UUID, uuid.UUID) error {
+	return nil
+}
+
+type subjectRepoMock struct {
+	noopSubjectRepo
+	subjects    map[uuid.UUID]*models.Subject
+	assignments map[uuid.UUID][]models.TeachingAssignment
+}
+
+func newSubjectRepoMock() *subjectRepoMock {
+	return &subjectRepoMock{
+		subjects:    make(map[uuid.UUID]*models.Subject),
+		assignments: make(map[uuid.UUID][]models.TeachingAssignment),
+	}
+}
+
+func (r *subjectRepoMock) GetByID(_ context.Context, id uuid.UUID) (*models.Subject, error) {
+	subject, ok := r.subjects[id]
+	if !ok {
+		return nil, errors.New("subject not found")
+	}
+	return subject, nil
+}
+
+func (r *subjectRepoMock) AssignTeacher(_ context.Context, assignment *models.TeachingAssignment) error {
+	if assignment == nil {
+		return errors.New("assignment nil")
+	}
+	r.assignments[assignment.SubjectID] = append(r.assignments[assignment.SubjectID], *assignment)
+	return nil
+}
+
+func (r *subjectRepoMock) ListSubjectAssignments(_ context.Context, subjectID uuid.UUID) ([]models.TeachingAssignment, error) {
+	assignments, ok := r.assignments[subjectID]
+	if !ok {
+		return []models.TeachingAssignment{}, nil
+	}
+	out := make([]models.TeachingAssignment, len(assignments))
+	copy(out, assignments)
+	return out, nil
+}
+
+func (r *subjectRepoMock) RemoveTeacherAssignment(_ context.Context, teacherID, subjectID uuid.UUID) error {
+	assignments := r.assignments[subjectID]
+	filtered := assignments[:0]
+	for _, assignment := range assignments {
+		if assignment.TeacherID != teacherID {
+			filtered = append(filtered, assignment)
+		}
+	}
+	r.assignments[subjectID] = append([]models.TeachingAssignment(nil), filtered...)
+	return nil
+}
 
 type noopSessionRepo struct{}
 
@@ -214,5 +273,76 @@ func TestDeanServiceAssignStudentToGroupBulk(t *testing.T) {
 	profile := userRepo.students[studentID]
 	if profile == nil || profile.GroupID == nil || *profile.GroupID != groupID {
 		t.Fatalf("expected student to be assigned to group %s", groupID)
+	}
+}
+
+func TestDeanServiceAssignTeacherValidatesRole(t *testing.T) {
+	userRepo := newDeanUserRepo()
+	subjectRepo := newSubjectRepoMock()
+	subjectID := uuid.New()
+	subjectRepo.subjects[subjectID] = &models.Subject{Base: models.Base{ID: subjectID}}
+
+	teacherID := uuid.New()
+	userRepo.users[teacherID] = &models.User{
+		Base: models.Base{ID: teacherID},
+		Role: models.UserRoleTeacher,
+	}
+
+	service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop())
+	if err := service.AssignTeacher(context.Background(), subjectID, reqdto.AssignTeacherRequest{TeacherID: teacherID.String()}); err != nil {
+		t.Fatalf("expected teacher assignment to succeed, got %v", err)
+	}
+	if len(subjectRepo.assignments[subjectID]) != 1 {
+		t.Fatalf("expected one assignment, got %d", len(subjectRepo.assignments[subjectID]))
+	}
+
+	studentID := uuid.New()
+	userRepo.users[studentID] = &models.User{
+		Base: models.Base{ID: studentID},
+		Role: models.UserRoleStudent,
+	}
+	err := service.AssignTeacher(context.Background(), subjectID, reqdto.AssignTeacherRequest{TeacherID: studentID.String()})
+	if err == nil || !strings.Contains(err.Error(), "selected user is not a teacher") {
+		t.Fatalf("expected role validation error, got %v", err)
+	}
+}
+
+func TestDeanServiceSubjectTeachersSorted(t *testing.T) {
+	userRepo := newDeanUserRepo()
+	subjectRepo := newSubjectRepoMock()
+	subjectID := uuid.New()
+	subjectRepo.subjects[subjectID] = &models.Subject{Base: models.Base{ID: subjectID}}
+
+	teacherA := uuid.New()
+	teacherB := uuid.New()
+	userRepo.users[teacherA] = &models.User{
+		Base:      models.Base{ID: teacherA},
+		Role:      models.UserRoleTeacher,
+		FirstName: "Irina",
+		LastName:  "Petrova",
+	}
+	userRepo.users[teacherB] = &models.User{
+		Base:      models.Base{ID: teacherB},
+		Role:      models.UserRoleTeacher,
+		FirstName: "Andrey",
+		LastName:  "Alekseev",
+	}
+
+	subjectRepo.assignments[subjectID] = []models.TeachingAssignment{
+		{Base: models.Base{ID: uuid.New()}, SubjectID: subjectID, TeacherID: teacherA},
+		{Base: models.Base{ID: uuid.New()}, SubjectID: subjectID, TeacherID: teacherA},
+		{Base: models.Base{ID: uuid.New()}, SubjectID: subjectID, TeacherID: teacherB},
+	}
+
+	service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop())
+	teachers, err := service.SubjectTeachers(context.Background(), subjectID)
+	if err != nil {
+		t.Fatalf("subject teachers: %v", err)
+	}
+	if len(teachers) != 2 {
+		t.Fatalf("expected 2 distinct teachers, got %d", len(teachers))
+	}
+	if teachers[0].LastName != "Alekseev" || teachers[1].LastName != "Petrova" {
+		t.Fatalf("expected alphabetical order, got %+v", teachers)
 	}
 }

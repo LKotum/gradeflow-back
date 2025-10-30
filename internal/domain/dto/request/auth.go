@@ -1,11 +1,5 @@
 package request
 
-// AdminLoginRequest captures credentials for admin authentication via INS.
-type AdminLoginRequest struct {
-	INS      string `json:"ins" binding:"required"`
-	Password string `json:"password" binding:"required,min=8"`
-}
-
 // INSLoginRequest is used by students, teachers, and dean staff.
 type INSLoginRequest struct {
 	INS      string `json:"ins" binding:"required"`

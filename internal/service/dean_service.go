@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -595,16 +596,27 @@ func (s *DeanService) AssignTeacher(ctx context.Context, subjectID uuid.UUID, pa
 	if err != nil {
 		return fmt.Errorf("parse teacher id: %w", err)
 	}
+	if _, err := s.subjects.GetByID(ctx, subjectID); err != nil {
+		return fmt.Errorf("load subject: %w", err)
+	}
+	teacher, err := s.users.GetByID(ctx, teacherID)
+	if err != nil {
+		return fmt.Errorf("load teacher: %w", err)
+	}
+	if teacher.Role != models.UserRoleTeacher {
+		return errors.New("selected user is not a teacher")
+	}
 	assignment := &models.TeachingAssignment{
 		Base:      models.Base{ID: uuid.New()},
 		SubjectID: subjectID,
 		TeacherID: teacherID,
 	}
 	if err := s.subjects.AssignTeacher(ctx, assignment); err != nil {
-		return err
+		return fmt.Errorf("assign teacher: %w", err)
 	}
 	s.invalidatePrefix(ctx, "subjects")
 	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "subjects", subjectID.String(), "teachers")
 	return nil
 }
 
@@ -710,7 +722,48 @@ func (s *DeanService) DetachTeacherFromSubject(ctx context.Context, subjectID, t
 	}
 	s.invalidatePrefix(ctx, "teachers")
 	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "subjects", subjectID.String(), "teachers")
 	return nil
+}
+
+// SubjectTeachers lists teachers assigned to a subject.
+func (s *DeanService) SubjectTeachers(ctx context.Context, subjectID uuid.UUID) ([]respdto.UserProfile, error) {
+	cacheKey := s.cacheKey("subjects", subjectID.String(), "teachers")
+	var cached []respdto.UserProfile
+	if ok, err := s.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return cached, nil
+	} else if err != nil {
+		logger.Warn("cache get failed", "key", cacheKey, "error", err)
+	}
+	assignments, err := s.subjects.ListSubjectAssignments(ctx, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("list subject assignments: %w", err)
+	}
+	if len(assignments) == 0 {
+		return []respdto.UserProfile{}, nil
+	}
+	unique := make(map[uuid.UUID]struct{}, len(assignments))
+	for _, a := range assignments {
+		unique[a.TeacherID] = struct{}{}
+	}
+	result := make([]respdto.UserProfile, 0, len(unique))
+	for teacherID := range unique {
+		user, err := s.users.GetByID(ctx, teacherID)
+		if err != nil {
+			return nil, fmt.Errorf("load teacher: %w", err)
+		}
+		result = append(result, userProfileFromModel(user))
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].LastName == result[j].LastName {
+			return result[i].FirstName < result[j].FirstName
+		}
+		return result[i].LastName < result[j].LastName
+	})
+	if err := s.cache.Set(ctx, cacheKey, result, 5*time.Minute); err != nil {
+		logger.Warn("cache set failed", "key", cacheKey, "error", err)
+	}
+	return result, nil
 }
 
 // ScheduleSession creates lesson slots for one subject and multiple groups.

@@ -11,21 +11,21 @@ type SubjectGroup struct {
 	Base
 	SubjectID uuid.UUID `gorm:"type:uuid;not null;index"`
 	GroupID   uuid.UUID `gorm:"type:uuid;not null;index"`
-	Subject   Subject   `gorm:"constraint:OnDelete:CASCADE"`
-	Group     Group     `gorm:"constraint:OnDelete:CASCADE"`
+	Subject   Subject   `gorm:"constraint:OnDelete:CASCADE;foreignKey:SubjectID;references:ID"`
+	Group     Group     `gorm:"constraint:OnDelete:CASCADE;foreignKey:GroupID;references:ID"`
 }
 
 // ClassSession represents a concrete lesson scheduled for a group and subject.
 type ClassSession struct {
 	Base
-	SubjectID uuid.UUID   `gorm:"type:uuid;not null;index"`
-	GroupID   uuid.UUID   `gorm:"type:uuid;not null;index"`
-	TeacherID uuid.UUID   `gorm:"type:uuid;not null;index"`
-	StartsAt  time.Time   `gorm:"not null;index"`
-	EndsAt    *time.Time  `gorm:""`
-	Topic     *string     `gorm:"type:text"`
-	Subject   Subject     `gorm:"constraint:OnDelete:CASCADE"`
-	Group     Group       `gorm:"constraint:OnDelete:CASCADE"`
-	Teacher   User        `gorm:"foreignKey:TeacherID;constraint:OnDelete:CASCADE"`
-	Grades    []Grade     `gorm:"foreignKey:SessionID"`
+	SubjectID uuid.UUID  `gorm:"type:uuid;not null;index"`
+	GroupID   uuid.UUID  `gorm:"type:uuid;not null;index"`
+	TeacherID uuid.UUID  `gorm:"type:uuid;not null;index"`
+	StartsAt  time.Time  `gorm:"not null;index"`
+	EndsAt    *time.Time `gorm:""`
+	Topic     *string    `gorm:"type:text"`
+	Subject   Subject    `gorm:"constraint:OnDelete:CASCADE;foreignKey:SubjectID;references:ID"`
+	Group     Group      `gorm:"constraint:OnDelete:CASCADE;foreignKey:GroupID;references:ID"`
+	Teacher   User       `gorm:"constraint:OnDelete:CASCADE;foreignKey:TeacherID;references:ID"`
+	Grades    []Grade    `gorm:"foreignKey:SessionID;references:ID"`
 }

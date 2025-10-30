@@ -10,6 +10,7 @@ import (
 	respdto "gradeflow/internal/domain/dto/response"
 	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
+	"gradeflow/pkg/utils"
 )
 
 // StudentService orchestrates student-facing use-cases.
@@ -134,14 +135,14 @@ func (s *StudentService) Subjects(ctx context.Context, studentID uuid.UUID) ([]r
 			if grade, ok := gradeMap[session.ID]; ok {
 				value := grade.Value
 				entry.Grade = &value
-				entry.GradeID = stringPtr(grade.ID.String())
+				entry.GradeID = utils.StringPtr(grade.ID.String())
 				entry.Notes = grade.Notes
 			}
 			sessionResponses = append(sessionResponses, entry)
 		}
 		avg, _ := s.grades.StudentSubjectAverage(ctx, studentID, subject.ID)
 		response = append(response, respdto.StudentSubjectGrade{
-			Subject: respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description},
+			Subject:  respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description},
 			Sessions: sessionResponses,
 			Average:  avg,
 		})

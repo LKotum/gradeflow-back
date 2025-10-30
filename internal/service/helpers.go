@@ -7,10 +7,6 @@ import (
 	"gradeflow/internal/domain/models"
 )
 
-func stringPtr(s string) *string {
-	return &s
-}
-
 func studentIndexOrDefault(user *models.User) string {
 	if user == nil {
 		return ""

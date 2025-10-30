@@ -12,6 +12,7 @@ import (
 	respdto "gradeflow/internal/domain/dto/response"
 	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
+	"gradeflow/pkg/utils"
 )
 
 // TeacherService handles teacher-facing operations.
@@ -214,7 +215,7 @@ func (s *TeacherService) GradeTable(ctx context.Context, teacherID, subjectID, g
 			if byStudent, ok := gradeLookup[session.ID]; ok {
 				if grade, ok := byStudent[user.ID]; ok {
 					value := grade.Value
-					detail.GradeID = stringPtr(grade.ID.String())
+					detail.GradeID = utils.StringPtr(grade.ID.String())
 					detail.Value = &value
 					detail.Notes = grade.Notes
 					assessedAt := grade.AssessedAt
@@ -266,7 +267,7 @@ func (s *TeacherService) UpsertGrade(ctx context.Context, teacherID uuid.UUID, p
 	}
 	value := stored.Value
 	return &respdto.GradeDetail{
-		GradeID:   stringPtr(stored.ID.String()),
+		GradeID:   utils.StringPtr(stored.ID.String()),
 		SessionID: stored.SessionID.String(),
 		Student: respdto.UserProfile{
 			ID:         student.ID.String(),
@@ -305,7 +306,7 @@ func (s *TeacherService) UpdateGrade(ctx context.Context, teacherID, gradeID uui
 	}
 	value := grade.Value
 	return &respdto.GradeDetail{
-		GradeID:   stringPtr(grade.ID.String()),
+		GradeID:   utils.StringPtr(grade.ID.String()),
 		SessionID: grade.SessionID.String(),
 		Student: respdto.UserProfile{
 			ID:         student.ID.String(),

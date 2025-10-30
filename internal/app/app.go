@@ -86,12 +86,14 @@ func New(cfg config.Config) (*App, error) {
 	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore)
 	teacherSvc := service.NewTeacherService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
 	studentSvc := service.NewStudentService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
+	profileSvc := service.NewProfileService(userRepo, minioClient, cfg.MinIO.BucketAvatars, cfg.APIBasePath)
 
 	authCtrl := controllers.NewAuthController(authSvc, userRepo)
 	adminCtrl := controllers.NewAdminController(adminSvc)
 	deanCtrl := controllers.NewDeanController(deanSvc)
 	teacherCtrl := controllers.NewTeacherController(teacherSvc)
 	studentCtrl := controllers.NewStudentController(studentSvc)
+	profileCtrl := controllers.NewProfileController(profileSvc)
 
 	r := gin.New()
 	cfgCors := cors.Config{
@@ -108,14 +110,22 @@ func New(cfg config.Config) (*App, error) {
 	docs.SwaggerInfo.BasePath = cfg.APIBasePath
 
 	r.GET("/healthz", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+	r.GET("/swagger", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusFound, "/swagger/index.html")
+	})
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	public := r.Group(cfg.APIBasePath)
+	public.GET("/swagger", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusFound, ctx.FullPath()+"/index.html")
+	})
+	public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	authCtrl.RegisterPublicRoutes(public.Group("/auth"))
 
 	private := r.Group(cfg.APIBasePath)
 	private.Use(middleware.JWTAuth([]byte(cfg.JWTSecret)))
 	authCtrl.RegisterPrivateRoutes(private.Group("/auth"))
+	profileCtrl.RegisterRoutes(private.Group("/profile"))
 
 	adminRoutes := private.Group("/admin")
 	adminRoutes.Use(middleware.RequireRoles(string(models.UserRoleAdmin)))

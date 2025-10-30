@@ -41,6 +41,7 @@ func (c *DeanController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.DELETE("/groups/:groupId", c.deleteGroup)
 	rg.POST("/subjects", c.createSubject)
 	rg.GET("/subjects", c.listSubjects)
+	rg.GET("/subjects/:subjectId/teachers", c.listSubjectTeachers)
 	rg.PATCH("/subjects/:subjectId", c.updateSubject)
 	rg.DELETE("/subjects/:subjectId", c.deleteSubject)
 	rg.POST("/teachers", c.createTeacher)
@@ -447,6 +448,30 @@ func (c *DeanController) assignTeacher(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteNoContent(ctx)
+}
+
+// listSubjectTeachers godoc
+// @Summary Получить список преподавателей предмета
+// @Security BearerAuth
+// @Tags Dean
+// @Produce json
+// @Param subjectId path string true "ID предмета"
+// @Success 200 {array} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /dean/subjects/{subjectId}/teachers [get]
+func (c *DeanController) listSubjectTeachers(ctx *gin.Context) {
+	subjectID, err := uuid.Parse(ctx.Param("subjectId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_subject", "invalid subject id", nil)
+		return
+	}
+	teachers, err := c.deans.SubjectTeachers(ctx.Request.Context(), subjectID)
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusInternalServerError, "subject_teacher_list_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, teachers)
 }
 
 // attachGroup godoc

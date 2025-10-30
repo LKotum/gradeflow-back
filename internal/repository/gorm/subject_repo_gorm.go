@@ -143,6 +143,7 @@ func (r *SubjectRepositoryGorm) ListTeacherAssignments(ctx context.Context, teac
 	var assignments []models.TeachingAssignment
 	if err := r.db.WithContext(ctx).
 		Where("teacher_id = ?", teacherID).
+		Order("created_at ASC").
 		Find(&assignments).Error; err != nil {
 		return nil, err
 	}
@@ -153,6 +154,7 @@ func (r *SubjectRepositoryGorm) ListSubjectAssignments(ctx context.Context, subj
 	var assignments []models.TeachingAssignment
 	if err := r.db.WithContext(ctx).
 		Where("subject_id = ?", subjectID).
+		Order("created_at ASC").
 		Find(&assignments).Error; err != nil {
 		return nil, err
 	}

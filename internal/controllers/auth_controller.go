@@ -34,7 +34,6 @@ func NewAuthController(auth *service.AuthService, users repository.UserRepositor
 // RegisterPublicRoutes binds unauthenticated routes.
 func (c *AuthController) RegisterPublicRoutes(rg *gin.RouterGroup) {
 	rg.POST("/login/ins", c.loginByINS)
-	rg.POST("/login/admin", c.loginAdmin)
 	rg.POST("/refresh", c.refresh)
 }
 
@@ -62,31 +61,6 @@ func (c *AuthController) loginByINS(ctx *gin.Context) {
 		return
 	}
 	resp, err := c.auth.LoginByINS(ctx.Request.Context(), payload)
-	if err != nil {
-		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_credentials", err.Error(), nil)
-		return
-	}
-	httpx.WriteData(ctx, http.StatusOK, resp)
-}
-
-// loginAdmin godoc
-// @Summary      Admin login
-// @Description  Authenticates admin using INS/password.
-// @Tags         Auth
-// @Accept       json
-// @Produce      json
-// @Param        payload  body      request.AdminLoginRequest  true  "Credentials"
-// @Success      200      {object}  response.AuthResponse
-// @Failure      400      {object}  response.ErrorResponse
-// @Failure      401      {object}  response.ErrorResponse
-// @Router       /auth/login/admin [post]
-func (c *AuthController) loginAdmin(ctx *gin.Context) {
-	var payload reqdto.AdminLoginRequest
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
-		return
-	}
-	resp, err := c.auth.LoginAdmin(ctx.Request.Context(), payload)
 	if err != nil {
 		httpx.WriteError(ctx, http.StatusUnauthorized, "invalid_credentials", err.Error(), nil)
 		return

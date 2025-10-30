@@ -22,7 +22,7 @@ type fakeUserRepo struct {
 	byINS         map[string]uuid.UUID
 	profiles      map[uuid.UUID]*models.StudentProfile
 	refreshTokens map[uuid.UUID]*models.RefreshToken
- 	nextINS       int
+	nextINS       int
 }
 
 func newFakeUserRepo() *fakeUserRepo {
@@ -83,9 +83,13 @@ func (f *fakeUserRepo) AttachStudentProfile(_ context.Context, profile *models.S
 	return nil
 }
 
-func (f *fakeUserRepo) AttachTeacherProfile(_ context.Context, _ *models.TeacherProfile) error { return nil }
+func (f *fakeUserRepo) AttachTeacherProfile(_ context.Context, _ *models.TeacherProfile) error {
+	return nil
+}
 
-func (f *fakeUserRepo) AttachStaffProfile(_ context.Context, _ *models.StaffProfile) error { return nil }
+func (f *fakeUserRepo) AttachStaffProfile(_ context.Context, _ *models.StaffProfile) error {
+	return nil
+}
 
 func (f *fakeUserRepo) UpsertRefreshToken(_ context.Context, token *models.RefreshToken) error {
 	f.refreshTokens[token.UserID] = token
@@ -110,17 +114,17 @@ func (f *fakeUserRepo) NextINS(context.Context) (string, error) {
 func TestAuthServiceLoginByINS(t *testing.T) {
 	repo := newFakeUserRepo()
 	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-    ins := "00000001"
+	ins := "00000001"
 	password := "Password123"
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-    user := &models.User{
-        Base: models.Base{ID: uuid.New()},
-        Role:         models.UserRoleTeacher,
-        INS:          &ins,
-        PasswordHash: string(hash),
-        FirstName:    "Tom",
-        LastName:     "Teacher",
-    }
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleTeacher,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Tom",
+		LastName:     "Teacher",
+	}
 	if err := repo.Create(context.Background(), user); err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -133,39 +137,19 @@ func TestAuthServiceLoginByINS(t *testing.T) {
 	}
 }
 
-func TestAuthServiceLoginAdminInvalidPassword(t *testing.T) {
-    repo := newFakeUserRepo()
-    svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-    ins := "00000010"
-    hash, _ := bcrypt.GenerateFromPassword([]byte("correctpass"), bcrypt.DefaultCost)
-    user := &models.User{
-        Base:         models.Base{ID: uuid.New()},
-        Role:         models.UserRoleAdmin,
-        INS:          &ins,
-        PasswordHash: string(hash),
-        FirstName:    "Alice",
-        LastName:     "Admin",
-    }
-    repo.Create(context.Background(), user)
-    _, err := svc.LoginAdmin(context.Background(), reqdto.AdminLoginRequest{INS: ins, Password: "wrong"})
-    if !errors.Is(err, ErrInvalidCredentials) {
-        t.Fatalf("expected ErrInvalidCredentials, got %v", err)
-    }
-}
-
 func TestAuthServiceRefresh(t *testing.T) {
 	repo := newFakeUserRepo()
 	svc := NewAuthService(repo, "secret", time.Minute, time.Hour)
-    ins := "00000002"
+	ins := "00000002"
 	hash, _ := bcrypt.GenerateFromPassword([]byte("refreshPass"), bcrypt.DefaultCost)
-    user := &models.User{
-        Base: models.Base{ID: uuid.New()},
-        Role:         models.UserRoleStudent,
-        INS:          &ins,
-        PasswordHash: string(hash),
-        FirstName:    "Sam",
-        LastName:     "Student",
-    }
+	user := &models.User{
+		Base:         models.Base{ID: uuid.New()},
+		Role:         models.UserRoleStudent,
+		INS:          &ins,
+		PasswordHash: string(hash),
+		FirstName:    "Sam",
+		LastName:     "Student",
+	}
 	repo.Create(context.Background(), user)
 	loginResp, err := svc.LoginByINS(context.Background(), reqdto.INSLoginRequest{INS: ins, Password: "refreshPass"})
 	if err != nil {

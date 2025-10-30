@@ -51,18 +51,6 @@ func (s *AuthService) LoginByINS(ctx context.Context, payload reqdto.INSLoginReq
 	return s.issueTokens(ctx, user)
 }
 
-// LoginAdmin authenticates administrator via INS.
-func (s *AuthService) LoginAdmin(ctx context.Context, payload reqdto.AdminLoginRequest) (*respdto.AuthResponse, error) {
-	user, err := s.users.GetByINS(ctx, payload.INS)
-	if err != nil || user.Role != models.UserRoleAdmin {
-		return nil, ErrInvalidCredentials
-	}
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.Password)) != nil {
-		return nil, ErrInvalidCredentials
-	}
-	return s.issueTokens(ctx, user)
-}
-
 // Refresh exchanges a refresh token for a new pair.
 func (s *AuthService) Refresh(ctx context.Context, payload reqdto.RefreshTokenRequest) (*respdto.AuthResponse, error) {
 	token, err := jwt.ParseWithClaims(payload.RefreshToken, &jwtRegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
