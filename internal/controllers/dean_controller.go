@@ -68,6 +68,7 @@ func (c *DeanController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.PATCH("/grades/:gradeId", c.updateGrade)
 	rg.GET("/schedule", c.schedule)
 	rg.POST("/sessions", c.scheduleSession)
+	// rg.PATCH("/sessions/:sessionId", c.scheduleSessionUpdate)
 	rg.GET("/groups/ranking", c.groupRanking)
 }
 
@@ -849,6 +850,36 @@ func (c *DeanController) schedule(ctx *gin.Context) {
 	}
 	httpx.WriteData(ctx, http.StatusOK, entries)
 }
+
+// scheduleSessionUpdate godoc
+// @Summary Обновить занятие
+// @Security BearerAuth
+// @Tags Dean
+// @Accept json
+// @Produce json
+// @Param payload body request.ScheduleSessionUpdateRequest true "Данные занятия"
+// @Success 200 {object} response.SessionDetail
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /dean/sessions/{sessionId} [patch]
+// func (c *DeanController) scheduleSessionUpdate(ctx *gin.Context) {
+// 	SessionID, err := uuid.Parse(ctx.Param("sessionId"))
+// 	if err != nil {
+// 		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_session", "invalid session id", nil)
+// 		return
+// 	}
+// 	var payload reqdto.ScheduleSessionUpdateRequest
+// 	if err := ctx.ShouldBindJSON(&payload); err != nil {
+// 		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+// 		return
+// 	}
+// 	resp, err := c.deans.ScheduleSessionUpdate(ctx.Request.Context(), SessionID, payload)
+// 	if err != nil {
+// 		httpx.WriteError(ctx, http.StatusInternalServerError, "session_update_failed", err.Error(), nil)
+// 		return
+// 	}
+// 	httpx.WriteData(ctx, http.StatusOK, resp)
+// }
 
 // groupRanking godoc
 // @Summary Group ranking by average grade

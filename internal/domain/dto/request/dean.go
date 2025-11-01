@@ -102,6 +102,15 @@ type ScheduleSessionRequest struct {
 	Topic     *string  `json:"topic,omitempty"`
 }
 
+// ScheduleSessionUpdateRequest updates a scheduled lesson.
+type ScheduleSessionUpdateRequest struct {
+	GroupIDs  *[]string `json:"groupIds,omitempty"`
+	TeacherID *string   `json:"teacherId,omitempty"`
+	Date      *string   `json:"date,omitempty" binding:"omitempty,datetime=2006-01-02"`
+	Slot      *int      `json:"slot,omitempty" binding:"omitempty,min=1,max=6"`
+	Topic     *string   `json:"topic,omitempty"`
+}
+
 // UpdateGradeRequest allows dean staff to update a grade.
 type UpdateGradeRequest struct {
 	Value float32 `json:"value" binding:"required,gte=2,lte=5"`

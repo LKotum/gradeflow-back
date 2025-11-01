@@ -100,6 +100,7 @@ func New(cfg config.Config) (*App, error) {
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
 	}
+	r.RedirectTrailingSlash = false
 	if cfg.Cors == "*" || cfg.Cors == "" {
 		cfgCors.AllowAllOrigins = true
 	} else {
@@ -116,10 +117,6 @@ func New(cfg config.Config) (*App, error) {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	public := r.Group(cfg.APIBasePath)
-	public.GET("/swagger", func(ctx *gin.Context) {
-		ctx.Redirect(http.StatusFound, ctx.FullPath()+"/index.html")
-	})
-	public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	authCtrl.RegisterPublicRoutes(public.Group("/auth"))
 
 	private := r.Group(cfg.APIBasePath)
