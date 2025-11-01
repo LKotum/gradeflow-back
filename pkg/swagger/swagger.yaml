@@ -12,17 +12,6 @@ definitions:
     - UserRoleDean
     - UserRoleTeacher
     - UserRoleStudent
-  request.AdminLoginRequest:
-    properties:
-      ins:
-        type: string
-      password:
-        minLength: 8
-        type: string
-    required:
-    - ins
-    - password
-    type: object
   request.AssignStudentToGroupRequest:
     properties:
       studentIds:
@@ -147,6 +136,8 @@ definitions:
       notes:
         type: string
       value:
+        maximum: 5
+        minimum: 2
         type: number
     required:
     - value
@@ -160,6 +151,8 @@ definitions:
       studentId:
         type: string
       value:
+        maximum: 5
+        minimum: 2
         type: number
     required:
     - sessionId
@@ -231,6 +224,17 @@ definitions:
       position:
         type: string
     type: object
+  request.UpdateGradeRequest:
+    properties:
+      notes:
+        type: string
+      value:
+        maximum: 5
+        minimum: 2
+        type: number
+    required:
+    - value
+    type: object
   request.UpdateGroupRequest:
     properties:
       description:
@@ -271,6 +275,23 @@ definitions:
       lastName:
         type: string
       middleName:
+        type: string
+      title:
+        type: string
+    type: object
+  request.UpdateUserRequest:
+    properties:
+      bio:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      middleName:
+        type: string
+      position:
         type: string
       title:
         type: string
@@ -503,6 +524,8 @@ definitions:
         type: string
       firstName:
         type: string
+      group:
+        $ref: '#/definitions/response.GroupSummary'
       id:
         type: string
       ins:
@@ -512,6 +535,16 @@ definitions:
       middleName:
         type: string
       role:
+        type: string
+      staffPosition:
+        type: string
+      subjects:
+        items:
+          $ref: '#/definitions/response.SubjectSummary'
+        type: array
+      teacherBio:
+        type: string
+      teacherTitle:
         type: string
     type: object
   response.UserSummary:
@@ -845,6 +878,97 @@ paths:
       summary: Soft delete user by ID
       tags:
       - Admin
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - Admin
+  /admin/users/{userId}/avatar:
+    delete:
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: userId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить аватар пользователя
+      tags:
+      - Admin
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Файл изображения
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Загрузить аватар пользователя
+      tags:
+      - Admin
   /admin/users/{userId}/password:
     patch:
       consumes:
@@ -933,36 +1057,6 @@ paths:
       summary: List deleted users by role
       tags:
       - Admin
-  /auth/login/admin:
-    post:
-      consumes:
-      - application/json
-      description: Authenticates admin using INS/password.
-      parameters:
-      - description: Credentials
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/request.AdminLoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/response.AuthResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Admin login
-      tags:
-      - Auth
   /auth/login/ins:
     post:
       consumes:
@@ -1068,6 +1162,38 @@ paths:
       summary: Refresh access token
       tags:
       - Auth
+  /dean/grades/{gradeId}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID оценки
+        in: path
+        name: gradeId
+        required: true
+        type: string
+      - description: Данные оценки
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateGradeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.GradeDetail'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Обновить оценку студента
+      tags:
+      - Dean
   /dean/groups:
     get:
       parameters:
@@ -1420,6 +1546,102 @@ paths:
       summary: Update student
       tags:
       - Dean
+  /dean/students/{studentId}/avatar:
+    delete:
+      parameters:
+      - description: ID студента
+        in: path
+        name: studentId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить аватар студента
+      tags:
+      - Dean
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: ID студента
+        in: path
+        name: studentId
+        required: true
+        type: string
+      - description: Файл изображения
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Загрузить аватар студента
+      tags:
+      - Dean
+  /dean/students/{studentId}/subjects:
+    get:
+      parameters:
+      - description: ID студента
+        in: path
+        name: studentId
+        required: true
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Search phrase
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PaginatedStudentSubjects'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Список предметов и оценок студента
+      tags:
+      - Dean
   /dean/subjects:
     get:
       parameters:
@@ -1588,6 +1810,36 @@ paths:
       summary: Attach group to subject
       tags:
       - Dean
+  /dean/subjects/{subjectId}/teachers:
+    get:
+      parameters:
+      - description: ID предмета
+        in: path
+        name: subjectId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.UserProfile'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить список преподавателей предмета
+      tags:
+      - Dean
   /dean/subjects/{subjectId}/teachers/{teacherId}:
     delete:
       parameters:
@@ -1706,6 +1958,170 @@ paths:
       summary: Update teacher
       tags:
       - Dean
+  /dean/teachers/{teacherId}/avatar:
+    delete:
+      parameters:
+      - description: ID преподавателя
+        in: path
+        name: teacherId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить аватар преподавателя
+      tags:
+      - Dean
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: ID преподавателя
+        in: path
+        name: teacherId
+        required: true
+        type: string
+      - description: Файл изображения
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Загрузить аватар преподавателя
+      tags:
+      - Dean
+  /profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Профиль текущего пользователя
+      tags:
+      - Profile
+  /profile/avatar:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Удалить аватар
+      tags:
+      - Profile
+    get:
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить аватар текущего пользователя
+      tags:
+      - Profile
+    put:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Файл изображения (png, jpg, gif)
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.UserProfile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Загрузить или обновить аватар
+      tags:
+      - Profile
   /student/dashboard:
     get:
       produces:

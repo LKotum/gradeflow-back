@@ -1,14 +1,15 @@
 package service
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net/url"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
+    "context"
+    "errors"
+    "fmt"
+    "io"
+    "net/url"
+    "sort"
+    "strconv"
+    "strings"
+    "time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -19,31 +20,34 @@ import (
 	"gradeflow/internal/repository"
 	"gradeflow/pkg/cache"
 	"gradeflow/pkg/logger"
+	"gradeflow/pkg/utils"
 )
 
 // DeanService exposes dean office orchestration use-cases.
 type DeanService struct {
-	users    repository.UserRepository
-	groups   repository.GroupRepository
-	subjects repository.SubjectRepository
-	sessions repository.SessionRepository
-	grades   repository.GradeRepository
-	cache    cache.Store
+    users    repository.UserRepository
+    groups   repository.GroupRepository
+    subjects repository.SubjectRepository
+    sessions repository.SessionRepository
+    grades   repository.GradeRepository
+    cache    cache.Store
+    profiles *ProfileService
 }
 
 // NewDeanService constructs the service.
-func NewDeanService(users repository.UserRepository, groups repository.GroupRepository, subjects repository.SubjectRepository, sessions repository.SessionRepository, grades repository.GradeRepository, cacheStore cache.Store) *DeanService {
-	if cacheStore == nil {
-		cacheStore = cache.NewNoop()
-	}
-	return &DeanService{
-		users:    users,
-		groups:   groups,
-		subjects: subjects,
-		sessions: sessions,
-		grades:   grades,
-		cache:    cacheStore,
-	}
+func NewDeanService(users repository.UserRepository, groups repository.GroupRepository, subjects repository.SubjectRepository, sessions repository.SessionRepository, grades repository.GradeRepository, cacheStore cache.Store, profiles *ProfileService) *DeanService {
+    if cacheStore == nil {
+        cacheStore = cache.NewNoop()
+    }
+    return &DeanService{
+        users:    users,
+        groups:   groups,
+        subjects: subjects,
+        sessions: sessions,
+        grades:   grades,
+        cache:    cacheStore,
+        profiles: profiles,
+    }
 }
 
 func (s *DeanService) cacheKey(parts ...string) string {
@@ -77,22 +81,6 @@ func uuidFromStringPtr(value *string) (*uuid.UUID, error) {
 		return nil, err
 	}
 	return &id, nil
-}
-
-func userProfileFromModel(u *models.User) respdto.UserProfile {
-	if u == nil {
-		return respdto.UserProfile{}
-	}
-	return respdto.UserProfile{
-		ID:         u.ID.String(),
-		FirstName:  u.FirstName,
-		LastName:   u.LastName,
-		MiddleName: u.MiddleName,
-		Email:      u.Email,
-		INS:        u.INS,
-		AvatarURL:  u.AvatarURL,
-		Role:       string(u.Role),
-	}
 }
 
 // CreateGroup provisions a new student group.
@@ -181,6 +169,7 @@ func (s *DeanService) DeleteGroup(ctx context.Context, groupID uuid.UUID) error 
 		return fmt.Errorf("delete group: %w", err)
 	}
 	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "groups", "deleted")
 	s.invalidatePrefix(ctx, "students")
 	s.invalidatePrefix(ctx, "subjects")
 	return nil
@@ -192,6 +181,7 @@ func (s *DeanService) RestoreGroup(ctx context.Context, groupID uuid.UUID) error
 		return fmt.Errorf("restore group: %w", err)
 	}
 	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "groups", "deleted")
 	return nil
 }
 
@@ -285,6 +275,7 @@ func (s *DeanService) DeleteSubject(ctx context.Context, subjectID uuid.UUID) er
 		return fmt.Errorf("delete subject: %w", err)
 	}
 	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "subjects", "deleted")
 	return nil
 }
 
@@ -294,6 +285,7 @@ func (s *DeanService) RestoreSubject(ctx context.Context, subjectID uuid.UUID) e
 		return fmt.Errorf("restore subject: %w", err)
 	}
 	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "subjects", "deleted")
 	return nil
 }
 
@@ -469,17 +461,11 @@ func (s *DeanService) CreateStudent(ctx context.Context, payload reqdto.CreateSt
 	if err := s.users.AttachStudentProfile(ctx, profile); err != nil {
 		return nil, fmt.Errorf("attach student profile: %w", err)
 	}
+	user.Student = profile
 	s.invalidatePrefix(ctx, "students")
 	s.invalidatePrefix(ctx, "users")
-	return &respdto.UserProfile{
-		ID:         user.ID.String(),
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		MiddleName: user.MiddleName,
-		Email:      user.Email,
-		INS:        user.INS,
-		Role:       string(user.Role),
-	}, nil
+	result := userProfileFromModel(user)
+	return &result, nil
 }
 
 // ListStudents returns student summaries.
@@ -502,17 +488,9 @@ func (s *DeanService) ListStudents(ctx context.Context, opts reqdto.PaginationQu
 		return nil, fmt.Errorf("list students: %w", err)
 	}
 	items := make([]respdto.UserProfile, 0, len(students))
-	for _, st := range students {
-		items = append(items, respdto.UserProfile{
-			ID:         st.ID.String(),
-			FirstName:  st.FirstName,
-			LastName:   st.LastName,
-			MiddleName: st.MiddleName,
-			Email:      st.Email,
-			INS:        st.INS,
-			AvatarURL:  st.AvatarURL,
-			Role:       string(st.Role),
-		})
+	for idx := range students {
+		profile := userProfileFromModel(&students[idx])
+		items = append(items, profile)
 	}
 	result := &respdto.Paginated[respdto.UserProfile]{
 		Data: items,
@@ -685,6 +663,124 @@ func (s *DeanService) AssignStudentToGroup(ctx context.Context, groupID uuid.UUI
 	return nil
 }
 
+// StudentSubjects returns subjects with grade history for given student.
+func (s *DeanService) StudentSubjects(ctx context.Context, studentID uuid.UUID, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.StudentSubjectGrade], error) {
+	user, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	grades, err := s.grades.ListByStudent(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("list student grades: %w", err)
+	}
+	gradesBySubject := make(map[uuid.UUID][]models.Grade)
+	for _, grade := range grades {
+		gradesBySubject[grade.SubjectID] = append(gradesBySubject[grade.SubjectID], grade)
+	}
+	var subjects []models.Subject
+	if user.Student != nil && user.Student.GroupID != nil {
+		if list, err := s.subjects.ListByGroup(ctx, *user.Student.GroupID); err == nil {
+			subjects = append(subjects, list...)
+		}
+	}
+	// ensure subjects referenced by grades are present
+	for subjectID := range gradesBySubject {
+		found := false
+		for _, subj := range subjects {
+			if subj.ID == subjectID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			if subj, err := s.subjects.GetByID(ctx, subjectID); err == nil {
+				subjects = append(subjects, *subj)
+			}
+		}
+	}
+	response := make([]respdto.StudentSubjectGrade, 0, len(subjects))
+	for _, subject := range subjects {
+		var sessions []models.ClassSession
+		if user.Student != nil && user.Student.GroupID != nil {
+			if list, err := s.sessions.ListBySubjectAndGroup(ctx, subject.ID, *user.Student.GroupID, nil, nil); err == nil {
+				sessions = append(sessions, list...)
+			}
+		}
+		gradesForSubject := gradesBySubject[subject.ID]
+		gradeMap := make(map[uuid.UUID]models.Grade)
+		for _, grade := range gradesForSubject {
+			gradeMap[grade.SessionID] = grade
+		}
+		if len(sessions) == 0 {
+			for _, grade := range gradesForSubject {
+				if session, err := s.sessions.GetByID(ctx, grade.SessionID); err == nil {
+					sessions = append(sessions, *session)
+				}
+			}
+		}
+		sessionResponses := make([]respdto.StudentSessionGrade, 0, len(sessions))
+		for _, session := range sessions {
+			entry := respdto.StudentSessionGrade{
+				Session: respdto.SessionSummary{
+					ID:        session.ID.String(),
+					StartsAt:  session.StartsAt,
+					EndsAt:    session.EndsAt,
+					Topic:     session.Topic,
+					SubjectID: session.SubjectID.String(),
+					GroupID:   session.GroupID.String(),
+				},
+			}
+			if grade, ok := gradeMap[session.ID]; ok {
+				value := grade.Value
+				entry.Grade = &value
+				entry.GradeID = utils.StringPtr(grade.ID.String())
+				entry.Notes = grade.Notes
+			}
+			sessionResponses = append(sessionResponses, entry)
+		}
+		subjectAverage, _ := s.grades.StudentSubjectAverage(ctx, studentID, subject.ID)
+		response = append(response, respdto.StudentSubjectGrade{
+			Subject:  respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description},
+			Sessions: sessionResponses,
+			Average:  subjectAverage,
+		})
+	}
+
+	filtered := response
+	if opts.Search != nil && strings.TrimSpace(*opts.Search) != "" {
+		needle := strings.ToLower(strings.TrimSpace(*opts.Search))
+		tmp := make([]respdto.StudentSubjectGrade, 0, len(filtered))
+		for _, subj := range filtered {
+			if strings.Contains(strings.ToLower(subj.Subject.Name), needle) ||
+				strings.Contains(strings.ToLower(subj.Subject.Code), needle) {
+				tmp = append(tmp, subj)
+			}
+		}
+		filtered = tmp
+	}
+
+	total := len(filtered)
+	opts.Normalize(100)
+	if total == 0 {
+		return &respdto.Paginated[respdto.StudentSubjectGrade]{
+			Data: []respdto.StudentSubjectGrade{},
+			Meta: respdto.PageMeta{Limit: opts.Limit, Offset: 0, Total: 0},
+		}, nil
+	}
+	if opts.Offset > total {
+		opts.Offset = total
+	}
+	end := opts.Offset + opts.Limit
+	if end > total {
+		end = total
+	}
+	paged := filtered[opts.Offset:end]
+	return &respdto.Paginated[respdto.StudentSubjectGrade]{
+		Data: paged,
+		Meta: respdto.PageMeta{Limit: opts.Limit, Offset: opts.Offset, Total: total},
+	}, nil
+}
+
 // DetachStudentFromGroup removes student assignment from a group.
 func (s *DeanService) DetachStudentFromGroup(ctx context.Context, groupID, studentID uuid.UUID) error {
 	user, err := s.users.GetByID(ctx, studentID)
@@ -715,6 +811,42 @@ func (s *DeanService) DetachStudentFromGroup(ctx context.Context, groupID, stude
 	return nil
 }
 
+// UpdateGrade allows dean staff to adjust any grade.
+func (s *DeanService) UpdateGrade(ctx context.Context, gradeID uuid.UUID, payload reqdto.UpdateGradeRequest) (*respdto.GradeDetail, error) {
+	if s.grades == nil {
+		return nil, errors.New("grade repository unavailable")
+	}
+	grade, err := s.grades.GetByID(ctx, gradeID)
+	if err != nil {
+		return nil, fmt.Errorf("load grade: %w", err)
+	}
+	value := payload.Value
+	if !isGradeValueAllowed(value) {
+		return nil, errors.New("grade value must be one of 2, 3, 4, 5")
+	}
+	grade.Value = value
+	grade.Notes = payload.Notes
+	assessedAt := time.Now()
+	grade.AssessedAt = assessedAt
+	if err := s.grades.Update(ctx, grade); err != nil {
+		return nil, fmt.Errorf("update grade: %w", err)
+	}
+	student, err := s.users.GetByID(ctx, grade.StudentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	value = grade.Value
+	profile := userProfileFromModel(student)
+	return &respdto.GradeDetail{
+		GradeID:    utils.StringPtr(grade.ID.String()),
+		SessionID:  grade.SessionID.String(),
+		Student:    profile,
+		Value:      &value,
+		Notes:      grade.Notes,
+		AssessedAt: &grade.AssessedAt,
+	}, nil
+}
+
 // DetachTeacherFromSubject removes teacher assignment from subject.
 func (s *DeanService) DetachTeacherFromSubject(ctx context.Context, subjectID, teacherID uuid.UUID) error {
 	if err := s.subjects.RemoveTeacherAssignment(ctx, teacherID, subjectID); err != nil {
@@ -724,6 +856,90 @@ func (s *DeanService) DetachTeacherFromSubject(ctx context.Context, subjectID, t
 	s.invalidatePrefix(ctx, "subjects")
 	s.invalidatePrefix(ctx, "subjects", subjectID.String(), "teachers")
 	return nil
+}
+
+// UpdateStudentAvatar lets dean staff update student photo.
+func (s *DeanService) UpdateStudentAvatar(ctx context.Context, studentID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	user, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	if user.Role != models.UserRoleStudent {
+		return nil, errors.New("user is not a student")
+	}
+	profile, err := s.profiles.UploadAvatarFor(ctx, studentID, data)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "groups")
+	return profile, nil
+}
+
+// DeleteStudentAvatar removes student photo.
+func (s *DeanService) DeleteStudentAvatar(ctx context.Context, studentID uuid.UUID) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	user, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	if user.Role != models.UserRoleStudent {
+		return nil, errors.New("user is not a student")
+	}
+	profile, err := s.profiles.DeleteAvatarFor(ctx, studentID)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "students")
+	s.invalidatePrefix(ctx, "groups")
+	return profile, nil
+}
+
+// UpdateTeacherAvatar lets dean staff update teacher photo.
+func (s *DeanService) UpdateTeacherAvatar(ctx context.Context, teacherID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	user, err := s.users.GetByID(ctx, teacherID)
+	if err != nil {
+		return nil, fmt.Errorf("load teacher: %w", err)
+	}
+	if user.Role != models.UserRoleTeacher {
+		return nil, errors.New("user is not a teacher")
+	}
+	profile, err := s.profiles.UploadAvatarFor(ctx, teacherID, data)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "subjects")
+	return profile, nil
+}
+
+// DeleteTeacherAvatar removes teacher photo.
+func (s *DeanService) DeleteTeacherAvatar(ctx context.Context, teacherID uuid.UUID) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	user, err := s.users.GetByID(ctx, teacherID)
+	if err != nil {
+		return nil, fmt.Errorf("load teacher: %w", err)
+	}
+	if user.Role != models.UserRoleTeacher {
+		return nil, errors.New("user is not a teacher")
+	}
+	profile, err := s.profiles.DeleteAvatarFor(ctx, teacherID)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "subjects")
+	return profile, nil
 }
 
 // SubjectTeachers lists teachers assigned to a subject.
@@ -797,7 +1013,11 @@ func (s *DeanService) ScheduleSession(ctx context.Context, payload reqdto.Schedu
 		return nil, errors.New("slot must be between 1 and 6")
 	}
 	slotDuration := 90 * time.Minute
-	startBase := time.Date(payload.Date.Year(), payload.Date.Month(), payload.Date.Day(), 9, 0, 0, 0, payload.Date.Location())
+	sessionDate, err := time.Parse("2006-01-02", payload.Date)
+	if err != nil {
+		return nil, fmt.Errorf("parse date: %w", err)
+	}
+	startBase := time.Date(sessionDate.Year(), sessionDate.Month(), sessionDate.Day(), 9, 0, 0, 0, time.Local)
 	startsAt := startBase.Add(time.Duration(payload.Slot-1) * slotDuration)
 	endsAt := startsAt.Add(slotDuration)
 

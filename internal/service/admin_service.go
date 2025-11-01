@@ -1,12 +1,13 @@
 package service
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net/url"
-	"strconv"
-	"strings"
+    "context"
+    "errors"
+    "fmt"
+    "io"
+    "net/url"
+    "strconv"
+    "strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -22,34 +23,37 @@ import (
 // AdminService handles administrator operations such as provisioning dean staff
 // and restoring soft-deleted records.
 type AdminService struct {
-	users    repository.UserRepository
-	groups   repository.GroupRepository
-	subjects repository.SubjectRepository
-	sessions repository.SessionRepository
-	grades   repository.GradeRepository
-	cache    cache.Store
+    users    repository.UserRepository
+    groups   repository.GroupRepository
+    subjects repository.SubjectRepository
+    sessions repository.SessionRepository
+    grades   repository.GradeRepository
+    cache    cache.Store
+    profiles *ProfileService
 }
 
 // NewAdminService creates the service.
 func NewAdminService(
-	users repository.UserRepository,
-	groups repository.GroupRepository,
-	subjects repository.SubjectRepository,
-	sessions repository.SessionRepository,
-	grades repository.GradeRepository,
-	cacheStore cache.Store,
+    users repository.UserRepository,
+    groups repository.GroupRepository,
+    subjects repository.SubjectRepository,
+    sessions repository.SessionRepository,
+    grades repository.GradeRepository,
+    cacheStore cache.Store,
+    profiles *ProfileService,
 ) *AdminService {
-	if cacheStore == nil {
-		cacheStore = cache.NewNoop()
-	}
-	return &AdminService{
-		users:    users,
-		groups:   groups,
-		subjects: subjects,
-		sessions: sessions,
-		grades:   grades,
-		cache:    cacheStore,
-	}
+    if cacheStore == nil {
+        cacheStore = cache.NewNoop()
+    }
+    return &AdminService{
+        users:    users,
+        groups:   groups,
+        subjects: subjects,
+        sessions: sessions,
+        grades:   grades,
+        cache:    cacheStore,
+        profiles: profiles,
+    }
 }
 
 func (s *AdminService) cacheKey(parts ...string) string {
@@ -73,16 +77,8 @@ func (s *AdminService) invalidatePrefix(ctx context.Context, parts ...string) {
 func (s *AdminService) userProfilesFromModels(users []models.User) []respdto.UserProfile {
 	items := make([]respdto.UserProfile, 0, len(users))
 	for _, u := range users {
-		items = append(items, respdto.UserProfile{
-			ID:         u.ID.String(),
-			FirstName:  u.FirstName,
-			LastName:   u.LastName,
-			MiddleName: u.MiddleName,
-			Email:      u.Email,
-			INS:        u.INS,
-			AvatarURL:  u.AvatarURL,
-			Role:       string(u.Role),
-		})
+		user := u
+		items = append(items, userProfileFromModel(&user))
 	}
 	return items
 }
@@ -119,15 +115,8 @@ func (s *AdminService) CreateDean(ctx context.Context, payload reqdto.CreateDean
 	}
 	s.invalidatePrefix(ctx, "deans")
 	s.invalidatePrefix(ctx, "users")
-	return &respdto.UserProfile{
-		ID:         user.ID.String(),
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		MiddleName: user.MiddleName,
-		Email:      user.Email,
-		INS:        user.INS,
-		Role:       string(user.Role),
-	}, nil
+	profile := userProfileFromModel(user)
+	return &profile, nil
 }
 
 // ListDeans returns dean staff profiles with pagination.
@@ -169,16 +158,8 @@ func (s *AdminService) UpdateDean(ctx context.Context, deanID uuid.UUID, payload
 	}
 	s.invalidatePrefix(ctx, "deans")
 	s.invalidatePrefix(ctx, "users")
-	return &respdto.UserProfile{
-		ID:         user.ID.String(),
-		FirstName:  user.FirstName,
-		LastName:   user.LastName,
-		MiddleName: user.MiddleName,
-		Email:      user.Email,
-		INS:        user.INS,
-		AvatarURL:  user.AvatarURL,
-		Role:       string(user.Role),
-	}, nil
+	profile := userProfileFromModel(user)
+	return &profile, nil
 }
 
 // DeleteDean performs soft delete for dean user.
@@ -188,7 +169,92 @@ func (s *AdminService) DeleteDean(ctx context.Context, deanID uuid.UUID) error {
 	}
 	s.invalidatePrefix(ctx, "deans")
 	s.invalidatePrefix(ctx, "users")
+	s.invalidatePrefix(ctx, "users", "deleted")
 	return nil
+}
+
+// UpdateUser updates fields for teacher/student/dean from admin panel.
+func (s *AdminService) UpdateUser(ctx context.Context, userID uuid.UUID, payload reqdto.UpdateUserRequest) (*respdto.UserProfile, error) {
+ user, err := s.users.GetByID(ctx, userID)
+ if err != nil {
+  return nil, fmt.Errorf("load user: %w", err)
+ }
+ normalize := func(value *string) *string {
+  if value == nil {
+   return nil
+  }
+  trimmed := strings.TrimSpace(*value)
+  if trimmed == "" {
+   return nil
+  }
+  return &trimmed
+ }
+ if payload.FirstName != nil {
+  val := strings.TrimSpace(*payload.FirstName)
+  if val == "" {
+   return nil, errors.New("firstName cannot be empty")
+  }
+  user.FirstName = val
+ }
+ if payload.LastName != nil {
+  val := strings.TrimSpace(*payload.LastName)
+  if val == "" {
+   return nil, errors.New("lastName cannot be empty")
+  }
+  user.LastName = val
+ }
+ if payload.MiddleName != nil {
+  user.MiddleName = normalize(payload.MiddleName)
+ }
+ if payload.Email != nil {
+  user.Email = normalize(payload.Email)
+ }
+ if err := s.users.Update(ctx, user); err != nil {
+  return nil, fmt.Errorf("update user: %w", err)
+ }
+ switch user.Role {
+ case models.UserRoleTeacher:
+  if payload.Title != nil || payload.Bio != nil {
+   profile := &models.TeacherProfile{UserID: user.ID}
+   if payload.Title != nil {
+    profile.Title = normalize(payload.Title)
+   }
+   if payload.Bio != nil {
+    profile.Bio = normalize(payload.Bio)
+   }
+   if err := s.users.AttachTeacherProfile(ctx, profile); err != nil {
+    return nil, fmt.Errorf("update teacher profile: %w", err)
+   }
+   if user.Teacher == nil {
+    user.Teacher = &models.TeacherProfile{}
+   }
+   user.Teacher.Title = profile.Title
+   user.Teacher.Bio = profile.Bio
+  }
+ case models.UserRoleDean:
+  if payload.Position != nil {
+   profile := &models.StaffProfile{UserID: user.ID, Position: normalize(payload.Position)}
+   if err := s.users.AttachStaffProfile(ctx, profile); err != nil {
+    return nil, fmt.Errorf("update staff profile: %w", err)
+   }
+   if user.Staff == nil {
+    user.Staff = &models.StaffProfile{}
+   }
+   user.Staff.Position = profile.Position
+  }
+ }
+ s.invalidatePrefix(ctx, "users")
+ if user.Role == models.UserRoleTeacher {
+  s.invalidatePrefix(ctx, "teachers")
+ }
+ if user.Role == models.UserRoleStudent {
+  s.invalidatePrefix(ctx, "students")
+ }
+ if user.Role == models.UserRoleDean {
+  s.invalidatePrefix(ctx, "deans")
+ }
+ profile := userProfileFromModel(user)
+ return &profile, nil
 }
 
 // RestoreDean removes soft delete mark from dean user.
@@ -239,6 +305,7 @@ func (s *AdminService) RestoreUser(ctx context.Context, userID uuid.UUID) error 
 		return fmt.Errorf("restore user: %w", err)
 	}
 	s.invalidatePrefix(ctx, "users")
+	s.invalidatePrefix(ctx, "users", "deleted")
 	s.invalidatePrefix(ctx, "deans")
 	s.invalidatePrefix(ctx, "teachers")
 	s.invalidatePrefix(ctx, "students")
@@ -291,6 +358,7 @@ func (s *AdminService) RestoreGroup(ctx context.Context, groupID uuid.UUID) erro
 		return fmt.Errorf("restore group: %w", err)
 	}
 	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "groups", "deleted")
 	return nil
 }
 
@@ -341,6 +409,7 @@ func (s *AdminService) RestoreSubject(ctx context.Context, subjectID uuid.UUID) 
 		return fmt.Errorf("restore subject: %w", err)
 	}
 	s.invalidatePrefix(ctx, "subjects")
+	s.invalidatePrefix(ctx, "subjects", "deleted")
 	return nil
 }
 
@@ -414,6 +483,7 @@ func (s *AdminService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	s.invalidatePrefix(ctx, "students")
 	s.invalidatePrefix(ctx, "subjects")
 	s.invalidatePrefix(ctx, "groups")
+	s.invalidatePrefix(ctx, "users", "deleted")
 	return nil
 }
 
@@ -436,6 +506,38 @@ func (s *AdminService) ResetPassword(ctx context.Context, userID uuid.UUID, pass
 	}
 	s.invalidatePrefix(ctx, "users")
 	return nil
+}
+
+// UpdateUserAvatar stores a new avatar for any user.
+func (s *AdminService) UpdateUserAvatar(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	profile, err := s.profiles.UploadAvatarFor(ctx, userID, data)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "users")
+	s.invalidatePrefix(ctx, "deans")
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "students")
+	return profile, nil
+}
+
+// DeleteUserAvatar removes avatar for the specified user.
+func (s *AdminService) DeleteUserAvatar(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
+	if s.profiles == nil {
+		return nil, ErrAvatarNotConfigured
+	}
+	profile, err := s.profiles.DeleteAvatarFor(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidatePrefix(ctx, "users")
+	s.invalidatePrefix(ctx, "deans")
+	s.invalidatePrefix(ctx, "teachers")
+	s.invalidatePrefix(ctx, "students")
+	return profile, nil
 }
 
 func (s *AdminService) listUsersByRole(ctx context.Context, scope []string, role models.UserRole, opts reqdto.PaginationQuery) (*respdto.Paginated[respdto.UserProfile], error) {

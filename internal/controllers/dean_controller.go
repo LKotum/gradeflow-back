@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,11 @@ func NewDeanController(deans *service.DeanService) *DeanController {
 	return &DeanController{deans: deans}
 }
 
-// RegisterRoutes wires dean routes.
+// RegisterRoutes registers dean routes.
+// @Summary Dean office operations
+// @Tags Dean
+// @Security BearerAuth
+// @BasePath /dean
 func (c *DeanController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/groups", c.createGroup)
 	rg.GET("/groups", c.listGroups)
@@ -47,14 +52,20 @@ func (c *DeanController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/teachers", c.createTeacher)
 	rg.GET("/teachers", c.listTeachers)
 	rg.PATCH("/teachers/:teacherId", c.updateTeacher)
+	rg.PUT("/teachers/:teacherId/avatar", c.uploadTeacherAvatar)
+	rg.DELETE("/teachers/:teacherId/avatar", c.deleteTeacherAvatar)
 	rg.POST("/students", c.createStudent)
 	rg.GET("/students", c.listStudents)
+	rg.GET("/students/:studentId/subjects", c.listStudentSubjects)
 	rg.PATCH("/students/:studentId", c.updateStudent)
+	rg.PUT("/students/:studentId/avatar", c.uploadStudentAvatar)
+	rg.DELETE("/students/:studentId/avatar", c.deleteStudentAvatar)
 	rg.POST("/subjects/:subjectId/assign", c.assignTeacher)
 	rg.POST("/subjects/:subjectId/groups", c.attachGroup)
 	rg.POST("/groups/:groupId/students", c.assignStudentToGroup)
 	rg.DELETE("/groups/:groupId/students/:studentId", c.detachStudentFromGroup)
 	rg.DELETE("/subjects/:subjectId/teachers/:teacherId", c.detachTeacherFromSubject)
+	rg.PATCH("/grades/:gradeId", c.updateGrade)
 	rg.GET("/schedule", c.schedule)
 	rg.POST("/sessions", c.scheduleSession)
 	rg.GET("/groups/ranking", c.groupRanking)
@@ -342,6 +353,77 @@ func (c *DeanController) updateTeacher(ctx *gin.Context) {
 	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
+// uploadTeacherAvatar godoc
+// @Summary Загрузить аватар преподавателя
+// @Security BearerAuth
+// @Tags Dean
+// @Accept mpfd
+// @Produce json
+// @Param teacherId path string true "ID преподавателя"
+// @Param avatar formData file true "Файл изображения"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /dean/teachers/{teacherId}/avatar [put]
+func (c *DeanController) uploadTeacherAvatar(ctx *gin.Context) {
+	teacherID, err := uuid.Parse(ctx.Param("teacherId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_teacher", "invalid teacher id", nil)
+		return
+	}
+	file, _, err := ctx.Request.FormFile("avatar")
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", "avatar file is required", nil)
+		return
+	}
+	defer file.Close()
+	profile, err := c.deans.UpdateTeacherAvatar(ctx.Request.Context(), teacherID, file)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarNotConfigured):
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+		case errors.Is(err, service.ErrInvalidAvatar):
+			httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", err.Error(), nil)
+		case errors.Is(err, service.ErrAvatarTooLarge):
+			httpx.WriteError(ctx, http.StatusRequestEntityTooLarge, "avatar_too_large", err.Error(), nil)
+		default:
+			httpx.WriteError(ctx, http.StatusBadRequest, "teacher_avatar_failed", err.Error(), nil)
+		}
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
+}
+
+// deleteTeacherAvatar godoc
+// @Summary Удалить аватар преподавателя
+// @Security BearerAuth
+// @Tags Dean
+// @Param teacherId path string true "ID преподавателя"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /dean/teachers/{teacherId}/avatar [delete]
+func (c *DeanController) deleteTeacherAvatar(ctx *gin.Context) {
+	teacherID, err := uuid.Parse(ctx.Param("teacherId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_teacher", "invalid teacher id", nil)
+		return
+	}
+	profile, err := c.deans.DeleteTeacherAvatar(ctx.Request.Context(), teacherID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarNotConfigured):
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+		case errors.Is(err, service.ErrAvatarNotFound):
+			httpx.WriteError(ctx, http.StatusNotFound, "avatar_not_found", err.Error(), nil)
+		default:
+			httpx.WriteError(ctx, http.StatusBadRequest, "teacher_avatar_delete_failed", err.Error(), nil)
+		}
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
+}
+
 // createStudent godoc
 // @Summary Create student
 // @Security BearerAuth
@@ -392,6 +474,37 @@ func (c *DeanController) listStudents(ctx *gin.Context) {
 	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
+// listStudentSubjects godoc
+// @Summary Список предметов и оценок студента
+// @Security BearerAuth
+// @Tags Dean
+// @Produce json
+// @Param studentId path string true "ID студента"
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Param search query string false "Search phrase"
+// @Success 200 {object} response.PaginatedStudentSubjects
+// @Failure 400 {object} response.ErrorResponse
+// @Router /dean/students/{studentId}/subjects [get]
+func (c *DeanController) listStudentSubjects(ctx *gin.Context) {
+	studentID, err := uuid.Parse(ctx.Param("studentId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_student", "invalid student id", nil)
+		return
+	}
+	var query reqdto.PaginationQuery
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_query", err.Error(), nil)
+		return
+	}
+	resp, err := c.deans.StudentSubjects(ctx.Request.Context(), studentID, query)
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "student_subjects_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, resp)
+}
+
 // updateStudent godoc
 // @Summary Update student
 // @Security BearerAuth
@@ -420,6 +533,77 @@ func (c *DeanController) updateStudent(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteData(ctx, http.StatusOK, resp)
+}
+
+// uploadStudentAvatar godoc
+// @Summary Загрузить аватар студента
+// @Security BearerAuth
+// @Tags Dean
+// @Accept mpfd
+// @Produce json
+// @Param studentId path string true "ID студента"
+// @Param avatar formData file true "Файл изображения"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /dean/students/{studentId}/avatar [put]
+func (c *DeanController) uploadStudentAvatar(ctx *gin.Context) {
+	studentID, err := uuid.Parse(ctx.Param("studentId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_student", "invalid student id", nil)
+		return
+	}
+	file, _, err := ctx.Request.FormFile("avatar")
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", "avatar file is required", nil)
+		return
+	}
+	defer file.Close()
+	profile, err := c.deans.UpdateStudentAvatar(ctx.Request.Context(), studentID, file)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarNotConfigured):
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+		case errors.Is(err, service.ErrInvalidAvatar):
+			httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", err.Error(), nil)
+		case errors.Is(err, service.ErrAvatarTooLarge):
+			httpx.WriteError(ctx, http.StatusRequestEntityTooLarge, "avatar_too_large", err.Error(), nil)
+		default:
+			httpx.WriteError(ctx, http.StatusBadRequest, "student_avatar_failed", err.Error(), nil)
+		}
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
+}
+
+// deleteStudentAvatar godoc
+// @Summary Удалить аватар студента
+// @Security BearerAuth
+// @Tags Dean
+// @Param studentId path string true "ID студента"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /dean/students/{studentId}/avatar [delete]
+func (c *DeanController) deleteStudentAvatar(ctx *gin.Context) {
+	studentID, err := uuid.Parse(ctx.Param("studentId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_student", "invalid student id", nil)
+		return
+	}
+	profile, err := c.deans.DeleteStudentAvatar(ctx.Request.Context(), studentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarNotConfigured):
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+		case errors.Is(err, service.ErrAvatarNotFound):
+			httpx.WriteError(ctx, http.StatusNotFound, "avatar_not_found", err.Error(), nil)
+		default:
+			httpx.WriteError(ctx, http.StatusBadRequest, "student_avatar_delete_failed", err.Error(), nil)
+		}
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
 }
 
 // assignTeacher godoc
@@ -582,6 +766,36 @@ func (c *DeanController) detachTeacherFromSubject(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteNoContent(ctx)
+}
+
+// updateGrade godoc
+// @Summary Обновить оценку студента
+// @Security BearerAuth
+// @Tags Dean
+// @Accept json
+// @Produce json
+// @Param gradeId path string true "ID оценки"
+// @Param payload body request.UpdateGradeRequest true "Данные оценки"
+// @Success 200 {object} response.GradeDetail
+// @Failure 400 {object} response.ErrorResponse
+// @Router /dean/grades/{gradeId} [patch]
+func (c *DeanController) updateGrade(ctx *gin.Context) {
+	gradeID, err := uuid.Parse(ctx.Param("gradeId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_grade", "invalid grade id", nil)
+		return
+	}
+	var payload reqdto.UpdateGradeRequest
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		return
+	}
+	resp, err := c.deans.UpdateGrade(ctx.Request.Context(), gradeID, payload)
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "grade_update_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
 // scheduleSession godoc

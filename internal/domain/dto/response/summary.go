@@ -4,14 +4,19 @@ import "time"
 
 // UserProfile represents basic identity information.
 type UserProfile struct {
-	ID         string  `json:"id"`
-	FirstName  string  `json:"firstName"`
-	LastName   string  `json:"lastName"`
-	MiddleName *string `json:"middleName,omitempty"`
-	Email      *string `json:"email,omitempty"`
-	INS        *string `json:"ins,omitempty"`
-	AvatarURL  *string `json:"avatarUrl,omitempty"`
-	Role       string  `json:"role"`
+	ID         string           `json:"id"`
+	FirstName  string           `json:"firstName"`
+	LastName   string           `json:"lastName"`
+	MiddleName *string          `json:"middleName,omitempty"`
+	Email      *string          `json:"email,omitempty"`
+	INS        *string          `json:"ins,omitempty"`
+	AvatarURL  *string          `json:"avatarUrl,omitempty"`
+	Role       string           `json:"role"`
+	Group      *GroupSummary    `json:"group,omitempty"`
+	Subjects   []SubjectSummary `json:"subjects,omitempty"`
+	TeacherTitle *string        `json:"teacherTitle,omitempty"`
+	TeacherBio   *string        `json:"teacherBio,omitempty"`
+	StaffPosition *string       `json:"staffPosition,omitempty"`
 }
 
 // GroupSummary contains lightweight group info.
@@ -37,8 +42,8 @@ type TeacherSubjectSummary struct {
 
 // TeacherDashboardResponse aggregates data for teacher cabinet.
 type TeacherDashboardResponse struct {
-	Profile  UserProfile              `json:"profile"`
-	Subjects []TeacherSubjectSummary  `json:"subjects"`
+	Profile  UserProfile             `json:"profile"`
+	Subjects []TeacherSubjectSummary `json:"subjects"`
 }
 
 // SessionSummary provides lesson metadata.
@@ -53,18 +58,18 @@ type SessionSummary struct {
 
 // GradeDetail contains grade info per student/session.
 type GradeDetail struct {
-	GradeID   *string       `json:"gradeId,omitempty"`
-	SessionID string        `json:"sessionId"`
-	Student   UserProfile   `json:"student"`
-	Value     *float32      `json:"value,omitempty"`
-	Notes     *string       `json:"notes,omitempty"`
-	AssessedAt *time.Time   `json:"assessedAt,omitempty"`
+	GradeID    *string     `json:"gradeId,omitempty"`
+	SessionID  string      `json:"sessionId"`
+	Student    UserProfile `json:"student"`
+	Value      *float32    `json:"value,omitempty"`
+	Notes      *string     `json:"notes,omitempty"`
+	AssessedAt *time.Time  `json:"assessedAt,omitempty"`
 }
 
 // GradeTableResponse is used for teacher gradebook view.
 type GradeTableResponse struct {
-	Subject SubjectSummary `json:"subject"`
-	Group   GroupSummary   `json:"group"`
+	Subject  SubjectSummary   `json:"subject"`
+	Group    GroupSummary     `json:"group"`
 	Sessions []SessionSummary `json:"sessions"`
 	Students []UserProfile    `json:"students"`
 	Grades   []GradeDetail    `json:"grades"`
@@ -88,9 +93,9 @@ type StudentSessionGrade struct {
 
 // StudentDashboardResponse contains student cabinet info.
 type StudentDashboardResponse struct {
-	Profile     UserProfile  `json:"profile"`
-	Group       *GroupSummary `json:"group,omitempty"`
-	AverageGPA  *float32     `json:"averageGpa,omitempty"`
+	Profile    UserProfile   `json:"profile"`
+	Group      *GroupSummary `json:"group,omitempty"`
+	AverageGPA *float32      `json:"averageGpa,omitempty"`
 }
 
 // AverageMetricResponse represents aggregated score metrics.

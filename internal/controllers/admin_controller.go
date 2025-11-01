@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,10 @@ func NewAdminController(admins *service.AdminService) *AdminController {
 }
 
 // RegisterRoutes registers admin endpoints.
+// @Summary Admin operations
+// @Tags Admin
+// @Security BearerAuth
+// @BasePath /admin
 func (c *AdminController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/deans", c.createDean)
 	rg.GET("/deans", c.listDeans)
@@ -32,9 +37,12 @@ func (c *AdminController) RegisterRoutes(rg *gin.RouterGroup) {
 
 	rg.GET("/users", c.listUsers)
 	rg.GET("/users/deleted", c.listDeletedUsers)
+	rg.PATCH("/users/:userId", c.updateUser)
 	rg.PATCH("/users/:userId/password", c.resetPassword)
 	rg.DELETE("/users/:userId", c.deleteUser)
 	rg.POST("/users/:userId/restore", c.restoreUser)
+	rg.PUT("/users/:userId/avatar", c.uploadUserAvatar)
+	rg.DELETE("/users/:userId/avatar", c.deleteUserAvatar)
 
 	rg.GET("/groups/deleted", c.listDeletedGroups)
 	rg.POST("/groups/:groupId/restore", c.restoreGroup)
@@ -206,6 +214,36 @@ func (c *AdminController) listUsers(ctx *gin.Context) {
 	httpx.WriteData(ctx, http.StatusOK, resp)
 }
 
+// updateUser godoc
+// @Summary Update user profile
+// @Security BearerAuth
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param userId path string true "User ID"
+// @Param payload body request.UpdateUserRequest true "Update payload"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Router /admin/users/{userId} [patch]
+func (c *AdminController) updateUser(ctx *gin.Context) {
+	userID, err := uuid.Parse(ctx.Param("userId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_user", "invalid user id", nil)
+		return
+	}
+	var payload reqdto.UpdateUserRequest
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		return
+	}
+	resp, err := c.admins.UpdateUser(ctx.Request.Context(), userID, payload)
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "user_update_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, resp)
+}
+
 // listDeletedUsers godoc
 // @Summary List deleted users by role
 // @Security BearerAuth
@@ -265,6 +303,78 @@ func (c *AdminController) deleteUser(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteNoContent(ctx)
+}
+
+// uploadUserAvatar godoc
+// @Summary Загрузить аватар пользователя
+// @Security BearerAuth
+// @Tags Admin
+// @Accept mpfd
+// @Produce json
+// @Param userId path string true "ID пользователя"
+// @Param avatar formData file true "Файл изображения"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /admin/users/{userId}/avatar [put]
+func (c *AdminController) uploadUserAvatar(ctx *gin.Context) {
+	userID, err := uuid.Parse(ctx.Param("userId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_user", "invalid user identifier", nil)
+		return
+	}
+	file, _, err := ctx.Request.FormFile("avatar")
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", "avatar file is required", nil)
+		return
+	}
+	defer file.Close()
+	profile, err := c.admins.UpdateUserAvatar(ctx.Request.Context(), userID, file)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarNotConfigured):
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+		case errors.Is(err, service.ErrInvalidAvatar):
+			httpx.WriteError(ctx, http.StatusBadRequest, "invalid_avatar", err.Error(), nil)
+		case errors.Is(err, service.ErrAvatarTooLarge):
+			httpx.WriteError(ctx, http.StatusRequestEntityTooLarge, "avatar_too_large", err.Error(), nil)
+		default:
+			httpx.WriteError(ctx, http.StatusInternalServerError, "avatar_upload_failed", err.Error(), nil)
+		}
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
+}
+
+// deleteUserAvatar godoc
+// @Summary Удалить аватар пользователя
+// @Security BearerAuth
+// @Tags Admin
+// @Param userId path string true "ID пользователя"
+// @Success 200 {object} response.UserProfile
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 503 {object} response.ErrorResponse
+// @Router /admin/users/{userId}/avatar [delete]
+func (c *AdminController) deleteUserAvatar(ctx *gin.Context) {
+	userID, err := uuid.Parse(ctx.Param("userId"))
+	if err != nil {
+		httpx.WriteError(ctx, http.StatusBadRequest, "invalid_user", "invalid user identifier", nil)
+		return
+	}
+	profile, err := c.admins.DeleteUserAvatar(ctx.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrAvatarNotConfigured) {
+			httpx.WriteError(ctx, http.StatusServiceUnavailable, "avatar_unavailable", err.Error(), nil)
+			return
+		}
+		if errors.Is(err, service.ErrAvatarNotFound) {
+			httpx.WriteError(ctx, http.StatusNotFound, "avatar_not_found", err.Error(), nil)
+			return
+		}
+		httpx.WriteError(ctx, http.StatusInternalServerError, "avatar_delete_failed", err.Error(), nil)
+		return
+	}
+	httpx.WriteData(ctx, http.StatusOK, profile)
 }
 
 // resetPassword godoc

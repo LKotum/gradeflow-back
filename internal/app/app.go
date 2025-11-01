@@ -82,11 +82,11 @@ func New(cfg config.Config) (*App, error) {
 	gradeRepo := gormrepo.NewGradeRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
-	adminSvc := service.NewAdminService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore)
-	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore)
+	profileSvc := service.NewProfileService(userRepo, minioClient, cacheStore, cfg.MinIO.BucketAvatars, cfg.APIBasePath)
+	adminSvc := service.NewAdminService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore, profileSvc)
+	deanSvc := service.NewDeanService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo, cacheStore, profileSvc)
 	teacherSvc := service.NewTeacherService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
 	studentSvc := service.NewStudentService(userRepo, groupRepo, subjectRepo, sessionRepo, gradeRepo)
-	profileSvc := service.NewProfileService(userRepo, minioClient, cfg.MinIO.BucketAvatars, cfg.APIBasePath)
 
 	authCtrl := controllers.NewAuthController(authSvc, userRepo)
 	adminCtrl := controllers.NewAdminController(adminSvc)

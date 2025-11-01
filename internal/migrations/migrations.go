@@ -362,7 +362,43 @@ func Run(ctx context.Context, db *gorm.DB) (*BootstrapAdmin, error) {
 				return nil
 			},
 		},
-	}
+	{
+		ID: "20250210_teaching_assignment_unique",
+		Migrate: func(tx *gorm.DB) error {
+			if err := tx.Exec(`DROP INDEX IF EXISTS idx_teaching_assignments_teacher_subject`).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_teaching_assignments_teacher_subject ON teaching_assignments (teacher_id, subject_id)`).Error
+		},
+		Rollback: func(tx *gorm.DB) error {
+			if err := tx.Exec(`DROP INDEX IF EXISTS uq_teaching_assignments_teacher_subject`).Error; err != nil {
+				return err
+			}
+			return tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teaching_assignments_teacher_subject ON teaching_assignments (teacher_id, subject_id) WHERE deleted_at IS NULL`).Error
+		},
+	},
+	{
+		ID: "20250212_fix_grade_unique",
+		Migrate: func(tx *gorm.DB) error {
+			if err := tx.Exec(`DROP INDEX IF EXISTS idx_grades_session_student`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_grades_session_student ON grades (session_id, student_id)`).Error; err != nil {
+				return err
+			}
+			return nil
+		},
+		Rollback: func(tx *gorm.DB) error {
+			if err := tx.Exec(`DROP INDEX IF EXISTS uq_grades_session_student`).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_grades_session_student ON grades (session_id, student_id) WHERE deleted_at IS NULL`).Error; err != nil {
+				return err
+			}
+			return nil
+		},
+	},
+}
 
 	migrator := gormigrate.New(db.WithContext(ctx), gormigrate.DefaultOptions, migrations)
 	// migrator.InitSchema(func(tx *gorm.DB) error {

@@ -32,12 +32,19 @@ func NewAuthController(auth *service.AuthService, users repository.UserRepositor
 }
 
 // RegisterPublicRoutes binds unauthenticated routes.
+// @Summary Authentication operations
+// @Tags Auth
+// @BasePath /auth
 func (c *AuthController) RegisterPublicRoutes(rg *gin.RouterGroup) {
 	rg.POST("/login/ins", c.loginByINS)
 	rg.POST("/refresh", c.refresh)
 }
 
 // RegisterPrivateRoutes binds authenticated routes.
+// @Summary Authenticated user operations
+// @Tags Auth
+// @Security BearerAuth
+// @BasePath /auth
 func (c *AuthController) RegisterPrivateRoutes(rg *gin.RouterGroup) {
 	rg.GET("/me", c.me)
 	rg.PATCH("/password", c.changePassword)

@@ -113,7 +113,10 @@ func (r *SubjectRepositoryGorm) SoftDelete(ctx context.Context, id uuid.UUID) er
 	if err := r.RemoveGroupLinks(ctx, id); err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Delete(&models.Subject{}, "id = ?", id).Error
+	return r.db.WithContext(ctx).
+		Model(&models.Subject{}).
+		Where("id = ?", id).
+		Update("deleted_at", gorm.Expr("NOW()")).Error
 }
 
 func (r *SubjectRepositoryGorm) Restore(ctx context.Context, id uuid.UUID) error {
@@ -174,12 +177,14 @@ func (r *SubjectRepositoryGorm) ListSubjectGroups(ctx context.Context, subjectID
 
 func (r *SubjectRepositoryGorm) RemoveTeacherAssignments(ctx context.Context, teacherID uuid.UUID) error {
 	return r.db.WithContext(ctx).
+		Unscoped().
 		Where("teacher_id = ?", teacherID).
 		Delete(&models.TeachingAssignment{}).Error
 }
 
 func (r *SubjectRepositoryGorm) RemoveAssignmentsBySubject(ctx context.Context, subjectID uuid.UUID) error {
 	return r.db.WithContext(ctx).
+		Unscoped().
 		Where("subject_id = ?", subjectID).
 		Delete(&models.TeachingAssignment{}).Error
 }
@@ -192,6 +197,7 @@ func (r *SubjectRepositoryGorm) RemoveGroupLinks(ctx context.Context, subjectID 
 
 func (r *SubjectRepositoryGorm) RemoveTeacherAssignment(ctx context.Context, teacherID, subjectID uuid.UUID) error {
 	return r.db.WithContext(ctx).
+		Unscoped().
 		Where("teacher_id = ? AND subject_id = ?", teacherID, subjectID).
 		Delete(&models.TeachingAssignment{}).Error
 }

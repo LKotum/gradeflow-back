@@ -23,3 +23,14 @@ type UpdateDeanRequest struct {
 	MiddleName *string `json:"middleName,omitempty"`
 	Position   *string `json:"position,omitempty"`
 }
+
+// UpdateUserRequest updates base profile fields for any user.
+type UpdateUserRequest struct {
+	Email      *string `json:"email,omitempty"`
+	FirstName  *string `json:"firstName,omitempty"`
+	LastName   *string `json:"lastName,omitempty"`
+	MiddleName *string `json:"middleName,omitempty"`
+	Title      *string `json:"title,omitempty"`
+	Bio        *string `json:"bio,omitempty"`
+	Position   *string `json:"position,omitempty"`
+}

@@ -61,6 +61,10 @@ func (s *TeacherService) Dashboard(ctx context.Context, teacherID uuid.UUID) (*r
 			Role:       string(user.Role),
 		},
 	}
+	teacherSessions, err := s.sessions.ListByTeacher(ctx, teacherID, nil, nil)
+	if err != nil {
+		teacherSessions = nil
+	}
 	for _, assignment := range assignments {
 		subject, ok := subjectsCache[assignment.SubjectID]
 		if !ok {
@@ -76,6 +80,7 @@ func (s *TeacherService) Dashboard(ctx context.Context, teacherID uuid.UUID) (*r
 			return nil, fmt.Errorf("list subject groups: %w", err)
 		}
 		groupSummaries := make([]respdto.GroupSummary, 0, len(links))
+		seenGroups := make(map[uuid.UUID]struct{})
 		for _, link := range links {
 			group, ok := groupsCache[link.GroupID]
 			if !ok {
@@ -86,7 +91,33 @@ func (s *TeacherService) Dashboard(ctx context.Context, teacherID uuid.UUID) (*r
 				groupsCache[link.GroupID] = *grp
 				group = *grp
 			}
+			seenGroups[group.ID] = struct{}{}
 			groupSummaries = append(groupSummaries, respdto.GroupSummary{ID: group.ID.String(), Name: group.Name, Description: group.Description})
+		}
+		if len(groupSummaries) == 0 && len(teacherSessions) > 0 {
+			for _, session := range teacherSessions {
+				if session.SubjectID != assignment.SubjectID {
+					continue
+				}
+				if _, done := seenGroups[session.GroupID]; done {
+					continue
+				}
+				group, ok := groupsCache[session.GroupID]
+				if !ok {
+					grp, err := s.groups.GetByID(ctx, session.GroupID)
+					if err != nil {
+						return nil, fmt.Errorf("load group: %w", err)
+					}
+					groupsCache[session.GroupID] = *grp
+					group = *grp
+				}
+				seenGroups[group.ID] = struct{}{}
+				groupSummaries = append(groupSummaries, respdto.GroupSummary{
+					ID:          group.ID.String(),
+					Name:        group.Name,
+					Description: group.Description,
+				})
+			}
 		}
 		resp.Subjects = append(resp.Subjects, respdto.TeacherSubjectSummary{
 			Subject: respdto.SubjectSummary{ID: subject.ID.String(), Code: subject.Code, Name: subject.Name, Description: subject.Description},
@@ -245,12 +276,26 @@ func (s *TeacherService) UpsertGrade(ctx context.Context, teacherID uuid.UUID, p
 	if session.TeacherID != teacherID {
 		return nil, errors.New("cannot grade session owned by another teacher")
 	}
+	value := payload.Value
+	if !isGradeValueAllowed(value) {
+		return nil, errors.New("grade value must be one of 2, 3, 4, 5")
+	}
+	student, err := s.users.GetByID(ctx, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load student: %w", err)
+	}
+	if session.GroupID != uuid.Nil {
+		if student.Student == nil || student.Student.GroupID == nil || *student.Student.GroupID != session.GroupID {
+			return nil, errors.New("student not assigned to this group")
+		}
+	}
 	grade := &models.Grade{
+		Base:       models.Base{ID: uuid.New()},
 		SessionID:  sessionID,
 		StudentID:  studentID,
 		SubjectID:  session.SubjectID,
 		TeacherID:  teacherID,
-		Value:      payload.Value,
+		Value:      value,
 		Notes:      payload.Notes,
 		AssessedAt: s.now(),
 	}
@@ -261,11 +306,7 @@ func (s *TeacherService) UpsertGrade(ctx context.Context, teacherID uuid.UUID, p
 	if err != nil {
 		return nil, fmt.Errorf("reload grade: %w", err)
 	}
-	student, err := s.users.GetByID(ctx, studentID)
-	if err != nil {
-		return nil, fmt.Errorf("load student: %w", err)
-	}
-	value := stored.Value
+	value = stored.Value
 	return &respdto.GradeDetail{
 		GradeID:   utils.StringPtr(stored.ID.String()),
 		SessionID: stored.SessionID.String(),
@@ -294,7 +335,11 @@ func (s *TeacherService) UpdateGrade(ctx context.Context, teacherID, gradeID uui
 	if grade.TeacherID != teacherID {
 		return nil, errors.New("cannot modify grade from another teacher")
 	}
-	grade.Value = payload.Value
+	value := payload.Value
+	if !isGradeValueAllowed(value) {
+		return nil, errors.New("grade value must be one of 2, 3, 4, 5")
+	}
+	grade.Value = value
 	grade.Notes = payload.Notes
 	grade.AssessedAt = s.now()
 	if err := s.grades.Update(ctx, grade); err != nil {
@@ -304,7 +349,7 @@ func (s *TeacherService) UpdateGrade(ctx context.Context, teacherID, gradeID uui
 	if err != nil {
 		return nil, fmt.Errorf("load student: %w", err)
 	}
-	value := grade.Value
+	value = grade.Value
 	return &respdto.GradeDetail{
 		GradeID:   utils.StringPtr(grade.ID.String()),
 		SessionID: grade.SessionID.String(),

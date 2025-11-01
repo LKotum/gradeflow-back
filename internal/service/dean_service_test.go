@@ -265,7 +265,7 @@ func TestDeanServiceAssignStudentToGroupBulk(t *testing.T) {
 		},
 	}
 
-	service := NewDeanService(userRepo, noopGroupRepo{}, noopSubjectRepo{}, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop())
+    service := NewDeanService(userRepo, noopGroupRepo{}, noopSubjectRepo{}, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop(), nil)
 	payload := reqdto.AssignStudentToGroupRequest{StudentIDs: []string{studentID.String()}}
 	if err := service.AssignStudentToGroup(context.Background(), groupID, payload); err != nil {
 		t.Fatalf("assign students: %v", err)
@@ -288,7 +288,7 @@ func TestDeanServiceAssignTeacherValidatesRole(t *testing.T) {
 		Role: models.UserRoleTeacher,
 	}
 
-	service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop())
+    service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop(), nil)
 	if err := service.AssignTeacher(context.Background(), subjectID, reqdto.AssignTeacherRequest{TeacherID: teacherID.String()}); err != nil {
 		t.Fatalf("expected teacher assignment to succeed, got %v", err)
 	}
@@ -334,7 +334,7 @@ func TestDeanServiceSubjectTeachersSorted(t *testing.T) {
 		{Base: models.Base{ID: uuid.New()}, SubjectID: subjectID, TeacherID: teacherB},
 	}
 
-	service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop())
+    service := NewDeanService(userRepo, noopGroupRepo{}, subjectRepo, noopSessionRepo{}, noopGradeRepo{}, cache.NewNoop(), nil)
 	teachers, err := service.SubjectTeachers(context.Background(), subjectID)
 	if err != nil {
 		t.Fatalf("subject teachers: %v", err)

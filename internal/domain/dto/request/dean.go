@@ -94,10 +94,16 @@ type AssignStudentToGroupRequest struct {
 
 // ScheduleSessionRequest defines lesson scheduling.
 type ScheduleSessionRequest struct {
-	SubjectID string    `json:"subjectId" binding:"required"`
-	GroupIDs  []string  `json:"groupIds" binding:"required,min=1,dive,required"`
-	TeacherID string    `json:"teacherId" binding:"required"`
-	Date      time.Time `json:"date" binding:"required"`
-	Slot      int       `json:"slot" binding:"required,min=1,max=6"`
-	Topic     *string   `json:"topic,omitempty"`
+	SubjectID string   `json:"subjectId" binding:"required"`
+	GroupIDs  []string `json:"groupIds" binding:"required,min=1,dive,required"`
+	TeacherID string   `json:"teacherId" binding:"required"`
+	Date      string   `json:"date" binding:"required,datetime=2006-01-02"`
+	Slot      int      `json:"slot" binding:"required,min=1,max=6"`
+	Topic     *string  `json:"topic,omitempty"`
+}
+
+// UpdateGradeRequest allows dean staff to update a grade.
+type UpdateGradeRequest struct {
+	Value float32 `json:"value" binding:"required,gte=2,lte=5"`
+	Notes *string `json:"notes,omitempty"`
 }

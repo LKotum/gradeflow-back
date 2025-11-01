@@ -24,6 +24,10 @@ func NewProfileController(profiles *service.ProfileService) *ProfileController {
 }
 
 // RegisterRoutes wires profile endpoints.
+// @Summary Profile operations
+// @Tags Profile
+// @Security BearerAuth
+// @BasePath /profile
 func (c *ProfileController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("", c.profile)
 	rg.PUT("/avatar", c.uploadAvatar)

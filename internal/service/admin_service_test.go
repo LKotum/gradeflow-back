@@ -70,7 +70,7 @@ func TestAdminServiceDeleteUser_PreventsAdminRemoval(t *testing.T) {
 		Base: models.Base{ID: adminID},
 		Role: models.UserRoleAdmin,
 	}
-    service := NewAdminService(repo, nil, nil, nil, nil, cache.NewNoop())
+	service := NewAdminService(repo, nil, nil, nil, nil, cache.NewNoop(), nil)
 
 	err := service.DeleteUser(context.Background(), adminID)
 	if err == nil {

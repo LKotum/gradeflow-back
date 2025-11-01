@@ -163,7 +163,7 @@ func TestProfileServiceUploadAvatar(t *testing.T) {
 	}
 
 	storage := newMemoryStorage()
-	service := NewProfileService(repo, nil, "avatars", "/api")
+	service := NewProfileService(repo, nil, nil, "avatars", "/api")
 	service.storage = storage
 	service.bucket = "avatars"
 	service.timeSource = func() time.Time { return time.Unix(1700000000, 0) }
@@ -218,7 +218,7 @@ func TestProfileServiceDeleteAndGet(t *testing.T) {
 	objectName := avatarObjectPrefix + userID.String() + ".png"
 	storage.bucket("avatars")[objectName] = memoryObject{data: []byte("avatar"), contentType: "image/png"}
 
-	service := NewProfileService(repo, nil, "avatars", "/api")
+	service := NewProfileService(repo, nil, nil, "avatars", "/api")
 	service.storage = storage
 	service.bucket = "avatars"
 
@@ -237,7 +237,7 @@ func TestProfileServiceInvalidAvatar(t *testing.T) {
 	repo := newProfileUserRepo()
 	userID := uuid.New()
 	repo.users[userID] = &models.User{Base: models.Base{ID: userID}, Role: models.UserRoleDean, FirstName: "Oleg", LastName: "Ivanov"}
-	service := NewProfileService(repo, nil, "avatars", "/api")
+	service := NewProfileService(repo, nil, nil, "avatars", "/api")
 
 	_, err := service.UploadAvatar(context.Background(), userID, bytes.NewReader([]byte("not an image")))
 	if !errors.Is(err, ErrAvatarNotConfigured) {

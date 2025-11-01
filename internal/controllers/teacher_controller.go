@@ -30,6 +30,10 @@ var (
 )
 
 // RegisterRoutes registers teacher endpoints.
+// @Summary Teacher operations
+// @Tags Teacher
+// @Security BearerAuth
+// @BasePath /teacher
 func (c *TeacherController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/dashboard", c.dashboard)
 	rg.GET("/subjects/:subjectId/groups/:groupId/grades", c.gradeTable)
@@ -40,15 +44,6 @@ func (c *TeacherController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/schedule", c.schedule)
 }
 
-// dashboard godoc
-// @Summary      Кабинет преподавателя
-// @Security     BearerAuth
-// @Tags         Teacher
-// @Produce      json
-// @Success      200 {object} response.TeacherDashboardResponse
-// @Failure      401 {object} response.ErrorResponse
-// @Failure      500 {object} response.ErrorResponse
-// @Router       /teacher/dashboard [get]
 func (c *TeacherController) teacherID(ctx *gin.Context) (uuid.UUID, bool) {
 	val, exists := ctx.Get(middleware.ContextUserIDKey)
 	if !exists {

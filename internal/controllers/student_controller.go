@@ -32,6 +32,10 @@ func NewStudentController(students *service.StudentService) *StudentController {
 }
 
 // RegisterRoutes wires student endpoints.
+// @Summary Student operations
+// @Tags Student
+// @Security BearerAuth
+// @BasePath /student
 func (c *StudentController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/dashboard", c.dashboard)
 	rg.GET("/subjects", c.subjects)
@@ -39,15 +43,6 @@ func (c *StudentController) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/schedule", c.schedule)
 }
 
-// dashboard godoc
-// @Summary      Личный кабинет студента
-// @Security     BearerAuth
-// @Tags         Student
-// @Produce      json
-// @Success      200 {object} response.StudentDashboardResponse
-// @Failure      401 {object} response.ErrorResponse
-// @Failure      500 {object} response.ErrorResponse
-// @Router       /student/dashboard [get]
 func (c *StudentController) studentID(ctx *gin.Context) (uuid.UUID, bool) {
 	val, exists := ctx.Get(middleware.ContextUserIDKey)
 	if !exists {

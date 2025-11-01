@@ -24,6 +24,7 @@ import (
 	respdto "gradeflow/internal/domain/dto/response"
 	"gradeflow/internal/domain/models"
 	"gradeflow/internal/repository"
+	"gradeflow/pkg/cache"
 	"gradeflow/pkg/logger"
 	"gradeflow/pkg/utils"
 )
@@ -31,7 +32,7 @@ import (
 const (
 	avatarObjectPrefix = "avatars/"
 	maxAvatarBytes     = 5 * 1024 * 1024
-	targetAvatarSize   = 256
+	targetAvatarSize   = 128
 )
 
 var (
@@ -93,10 +94,11 @@ type ProfileService struct {
 	bucket        string
 	avatarAPIPath string
 	timeSource    func() time.Time
+	cache         cache.Store
 }
 
 // NewProfileService constructs profile service.
-func NewProfileService(users repository.UserRepository, minioClient *minio.Client, bucket, apiBasePath string) *ProfileService {
+func NewProfileService(users repository.UserRepository, minioClient *minio.Client, cacheStore cache.Store, bucket, apiBasePath string) *ProfileService {
 	var storage avatarStorage
 	if minioClient != nil && bucket != "" {
 		storage = &minioStorage{client: minioClient}
@@ -111,12 +113,16 @@ func NewProfileService(users repository.UserRepository, minioClient *minio.Clien
 		}
 		trimmed = trimmed + "/profile/avatar"
 	}
+	if cacheStore == nil {
+		cacheStore = cache.NewNoop()
+	}
 	return &ProfileService{
 		users:         users,
 		storage:       storage,
 		bucket:        bucket,
 		avatarAPIPath: trimmed,
 		timeSource:    time.Now,
+		cache:         cacheStore,
 	}
 }
 
@@ -132,71 +138,34 @@ func (s *ProfileService) Profile(ctx context.Context, userID uuid.UUID) (*respdt
 
 // UploadAvatar stores user avatar (resized to 128x128) in MinIO and updates profile.
 func (s *ProfileService) UploadAvatar(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
-	if s.storage == nil || s.bucket == "" {
-		return nil, ErrAvatarNotConfigured
-	}
-	user, err := s.users.GetByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("load user: %w", err)
-	}
-
-	payload, err := readAvatarPayload(data)
-	if err != nil {
-		return nil, err
-	}
-
-	img, format, decodeErr := image.Decode(bytes.NewReader(payload))
-	if decodeErr != nil {
-		return nil, ErrInvalidAvatar
-	}
-	if !isSupportedAvatarFormat(format) {
-		return nil, ErrInvalidAvatar
-	}
-
-	resized := resizeToSquare(img, targetAvatarSize)
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, resized); err != nil {
-		return nil, fmt.Errorf("encode avatar: %w", err)
-	}
-
-	objectName := avatarObjectPrefix + userID.String() + ".png"
-	opts := minio.PutObjectOptions{
-		ContentType: "image/png",
-	}
-	reader := bytes.NewReader(buf.Bytes())
-	if _, err := s.storage.PutObject(ctx, s.bucket, objectName, reader, int64(buf.Len()), opts); err != nil {
-		return nil, fmt.Errorf("store avatar: %w", err)
-	}
-
-	versionedURL := fmt.Sprintf("%s?v=%d", s.avatarAPIPath, s.timeSource().Unix())
-	user.AvatarURL = utils.StringPtr(versionedURL)
-	if err := s.users.Update(ctx, user); err != nil {
-		return nil, fmt.Errorf("update user avatar: %w", err)
-	}
-
-	profile := buildUserProfile(user)
-	return &profile, nil
+    if s.storage == nil || s.bucket == "" {
+        return nil, ErrAvatarNotConfigured
+    }
+    return s.uploadAvatarFor(ctx, userID, data)
 }
 
 // DeleteAvatar removes avatar object and clears profile reference.
 func (s *ProfileService) DeleteAvatar(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
-	if s.storage == nil || s.bucket == "" {
-		return nil, ErrAvatarNotConfigured
-	}
-	user, err := s.users.GetByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("load user: %w", err)
-	}
-	objectName := avatarObjectPrefix + userID.String() + ".png"
-	if err := s.storage.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{}); err != nil {
-		logger.Warn("remove avatar failed", "error", err, "user", userID)
-	}
-	user.AvatarURL = nil
-	if err := s.users.Update(ctx, user); err != nil {
-		return nil, fmt.Errorf("update user avatar: %w", err)
-	}
-	profile := buildUserProfile(user)
-	return &profile, nil
+    if s.storage == nil || s.bucket == "" {
+        return nil, ErrAvatarNotConfigured
+    }
+    return s.deleteAvatarFor(ctx, userID)
+}
+
+// UploadAvatarFor allows privileged users to update someone else's avatar.
+func (s *ProfileService) UploadAvatarFor(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
+    if s.storage == nil || s.bucket == "" {
+        return nil, ErrAvatarNotConfigured
+    }
+    return s.uploadAvatarFor(ctx, userID, data)
+}
+
+// DeleteAvatarFor allows privileged users to remove someone else's avatar.
+func (s *ProfileService) DeleteAvatarFor(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
+    if s.storage == nil || s.bucket == "" {
+        return nil, ErrAvatarNotConfigured
+    }
+    return s.deleteAvatarFor(ctx, userID)
 }
 
 // GetAvatar streams avatar object from storage.
@@ -228,6 +197,77 @@ func (s *ProfileService) GetAvatar(ctx context.Context, userID uuid.UUID) (*Avat
 		Size:        info.Size,
 		ContentType: contentType,
 	}, nil
+}
+
+func (s *ProfileService) uploadAvatarFor(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("load user: %w", err)
+	}
+	payload, err := prepareAvatarPayload(data)
+	if err != nil {
+		return nil, err
+	}
+	return s.storeAvatar(ctx, user, payload)
+}
+
+func (s *ProfileService) deleteAvatarFor(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("load user: %w", err)
+	}
+	if err := s.removeAvatarObject(ctx, user.ID); err != nil {
+		logger.Warn("remove avatar failed", "error", err, "user", user.ID)
+	}
+	user.AvatarURL = nil
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("update user avatar: %w", err)
+	}
+	s.invalidateUserCaches(ctx, user)
+	profile := buildUserProfile(user)
+	return &profile, nil
+}
+
+func (s *ProfileService) storeAvatar(ctx context.Context, user *models.User, payload []byte) (*respdto.UserProfile, error) {
+	objectName := avatarObjectPrefix + user.ID.String() + ".png"
+	reader := bytes.NewReader(payload)
+	opts := minio.PutObjectOptions{ContentType: "image/png"}
+	if _, err := s.storage.PutObject(ctx, s.bucket, objectName, reader, int64(len(payload)), opts); err != nil {
+		return nil, fmt.Errorf("store avatar: %w", err)
+	}
+	versionedURL := fmt.Sprintf("%s?v=%d", s.avatarAPIPath, s.timeSource().Unix())
+	user.AvatarURL = utils.StringPtr(versionedURL)
+	if err := s.users.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("update user avatar: %w", err)
+	}
+	s.invalidateUserCaches(ctx, user)
+	profile := buildUserProfile(user)
+	return &profile, nil
+}
+
+func (s *ProfileService) removeAvatarObject(ctx context.Context, userID uuid.UUID) error {
+	objectName := avatarObjectPrefix + userID.String() + ".png"
+	return s.storage.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
+}
+
+func prepareAvatarPayload(data io.Reader) ([]byte, error) {
+	payload, err := readAvatarPayload(data)
+	if err != nil {
+		return nil, err
+	}
+	img, format, decodeErr := image.Decode(bytes.NewReader(payload))
+	if decodeErr != nil {
+		return nil, ErrInvalidAvatar
+	}
+	if !isSupportedAvatarFormat(format) {
+		return nil, ErrInvalidAvatar
+	}
+	resized := resizeToSquare(img, targetAvatarSize)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, resized); err != nil {
+		return nil, fmt.Errorf("encode avatar: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func readAvatarPayload(r io.Reader) ([]byte, error) {
@@ -285,6 +325,26 @@ func resizeToSquare(img image.Image, size int) *image.NRGBA {
 	return scaled
 }
 
+func (s *ProfileService) invalidateUserCaches(ctx context.Context, user *models.User) {
+	if s.cache == nil || user == nil {
+		return
+	}
+	prefixes := []string{"admin:users"}
+	switch user.Role {
+	case models.UserRoleDean:
+		prefixes = append(prefixes, "admin:deans")
+	case models.UserRoleTeacher:
+		prefixes = append(prefixes, "dean:teachers", "dean:subjects", "dean:groups")
+	case models.UserRoleStudent:
+		prefixes = append(prefixes, "dean:students", "dean:groups", "dean:subjects")
+	}
+	for _, prefix := range prefixes {
+		if err := s.cache.InvalidatePrefix(ctx, prefix); err != nil {
+			logger.Warn("profile cache invalidate failed", "prefix", prefix, "error", err)
+		}
+	}
+}
+
 func buildUserProfile(user *models.User) respdto.UserProfile {
 	if user == nil {
 		return respdto.UserProfile{}
@@ -305,10 +365,33 @@ func isNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	resp := minio.ToErrorResponse(err)
-	if resp.Code != "" {
-		if resp.StatusCode == http.StatusNotFound || resp.Code == "NoSuchKey" || resp.Code == "NotFound" {
+	if errors.Is(err, ErrAvatarNotFound) {
+		return true
+	}
+	var minioErr minio.ErrorResponse
+	if errors.As(err, &minioErr) {
+		if minioErr.StatusCode == http.StatusNotFound || minioErr.Code == "NoSuchKey" || minioErr.Code == "NotFound" {
 			return true
+		}
+	}
+	resp := minio.ToErrorResponse(err)
+	if resp.Code == "NoSuchKey" || resp.Code == "NotFound" || resp.StatusCode == http.StatusNotFound {
+		return true
+	}
+	if resp.StatusCode == 0 && resp.Code == "" {
+		if direct, ok := err.(minio.ErrorResponse); ok {
+			if direct.StatusCode == http.StatusNotFound {
+				return true
+			}
+		}
+		if directPtr, ok := err.(*minio.ErrorResponse); ok && directPtr != nil {
+			if directPtr.StatusCode == http.StatusNotFound {
+				return true
+			}
+		}
+		var apiErr interface{ StatusCode() int }
+		if errors.As(err, &apiErr) {
+			return apiErr.StatusCode() == http.StatusNotFound
 		}
 	}
 	return false

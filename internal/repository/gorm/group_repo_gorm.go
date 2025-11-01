@@ -100,7 +100,10 @@ func (r *GroupRepositoryGorm) SoftDelete(ctx context.Context, id uuid.UUID) erro
 	if err := r.RemoveSubjectLinks(ctx, id); err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Delete(&models.Group{}, "id = ?", id).Error
+	return r.db.WithContext(ctx).
+		Model(&models.Group{}).
+		Where("id = ?", id).
+		Update("deleted_at", gorm.Expr("NOW()")).Error
 }
 
 func (r *GroupRepositoryGorm) Restore(ctx context.Context, id uuid.UUID) error {
