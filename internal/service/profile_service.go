@@ -16,7 +16,6 @@ import (
 
 	_ "image/gif"
 	_ "image/jpeg"
-	_ "image/png"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -138,34 +137,34 @@ func (s *ProfileService) Profile(ctx context.Context, userID uuid.UUID) (*respdt
 
 // UploadAvatar stores user avatar (resized to 128x128) in MinIO and updates profile.
 func (s *ProfileService) UploadAvatar(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
-    if s.storage == nil || s.bucket == "" {
-        return nil, ErrAvatarNotConfigured
-    }
-    return s.uploadAvatarFor(ctx, userID, data)
+	if s.storage == nil || s.bucket == "" {
+		return nil, ErrAvatarNotConfigured
+	}
+	return s.uploadAvatarFor(ctx, userID, data)
 }
 
 // DeleteAvatar removes avatar object and clears profile reference.
 func (s *ProfileService) DeleteAvatar(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
-    if s.storage == nil || s.bucket == "" {
-        return nil, ErrAvatarNotConfigured
-    }
-    return s.deleteAvatarFor(ctx, userID)
+	if s.storage == nil || s.bucket == "" {
+		return nil, ErrAvatarNotConfigured
+	}
+	return s.deleteAvatarFor(ctx, userID)
 }
 
 // UploadAvatarFor allows privileged users to update someone else's avatar.
 func (s *ProfileService) UploadAvatarFor(ctx context.Context, userID uuid.UUID, data io.Reader) (*respdto.UserProfile, error) {
-    if s.storage == nil || s.bucket == "" {
-        return nil, ErrAvatarNotConfigured
-    }
-    return s.uploadAvatarFor(ctx, userID, data)
+	if s.storage == nil || s.bucket == "" {
+		return nil, ErrAvatarNotConfigured
+	}
+	return s.uploadAvatarFor(ctx, userID, data)
 }
 
 // DeleteAvatarFor allows privileged users to remove someone else's avatar.
 func (s *ProfileService) DeleteAvatarFor(ctx context.Context, userID uuid.UUID) (*respdto.UserProfile, error) {
-    if s.storage == nil || s.bucket == "" {
-        return nil, ErrAvatarNotConfigured
-    }
-    return s.deleteAvatarFor(ctx, userID)
+	if s.storage == nil || s.bucket == "" {
+		return nil, ErrAvatarNotConfigured
+	}
+	return s.deleteAvatarFor(ctx, userID)
 }
 
 // GetAvatar streams avatar object from storage.
