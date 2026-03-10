@@ -36,10 +36,6 @@ pkg/
 * Redis (необязательно, но рекомендуется)
 * MinIO (для аватаров/отчётов)
 
-## Переменные окружения
-
-Ты прав — в README я не расписал все ENV’ы. Ниже дал обновлённый блок «Environment Variables» для README.md, где перечислены **все** переменные из `internal/config/config.go` (включая детальные `LOG_*`) и то, что используется в `compose.yml` и `.env.example`. Можешь заменить старый раздел на этот.
-
 ## Environment Variables
 
 Бэкенд читает конфигурацию из ENV (см. `internal/config/config.go`). Полный перечень:
